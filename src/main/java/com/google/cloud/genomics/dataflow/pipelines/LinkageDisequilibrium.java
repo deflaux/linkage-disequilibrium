@@ -17,6 +17,8 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Proto2Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.Default;
+import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -28,6 +30,7 @@ import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.cloud.genomics.utils.ShardUtils;
 import com.google.cloud.genomics.utils.grpc.VariantStreamIterator;
+import com.google.common.primitives.Doubles;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
@@ -37,180 +40,278 @@ import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Queue;
-import java.lang.IllegalArgumentException;
 
 /**
- * TODO: write program functionality
+ * Computes linkage disequilibrium r between all variants inside the references list of a dataset to
+ * all others within window. Outputs those pairs whose r is at least cutoff. For variants with
+ * greater than two alleles ("Multiallelic" variants), each allele is compared to others and the
+ * output name is prefixed with ":RefAllele".
+ * 
+ * TODO: Option to work on unphased data.
+ * 
+ * TODO: Add tests, with special attention to the following cases: 1. When the window size is
+ * greater than a shard size, and the converse. 2. Variants that overlap a shard, window, and
+ * reference boundary (off-by-one errors, in particular). 3. Multiple variants at the same start
+ * and/or end, including overlaps with shard, window, and reference boundaries. 4. 1 bp shards,
+ * empty shards, shards past the end of the chromosome.
  */
 public class LinkageDisequilibrium {
 
-  private static class ProcessVariants extends DoFn<StreamVariantsRequest, String> {
+  static class ComputeLdWorker extends DoFn<StreamVariantsRequest, String> {
     private final GenomicsFactory.OfflineAuth auth;
     private final long window;
     private final double cutoff;
 
-    public ProcessVariants(GenomicsFactory.OfflineAuth auth, long window, double cutoff) {
+    /**
+     * Simplified variant with only information needed for computing and outputting pairwise LD
+     * within a window
+     */
+    private class SimpleVariant {
+      private final String id;
+      private final String referenceName;
+      private final long start;
+      private final long end;
+      private final int altCount;
+      private final int[] genotypes;
+
+      public SimpleVariant(String id, String referenceName, long start, long end, int altCount,
+          int[] genotypes) {
+        this.id = id;
+        this.referenceName = referenceName;
+        this.start = start;
+        this.end = end;
+        this.altCount = altCount;
+        this.genotypes = genotypes;
+      }
+
+      public String getId() {
+        return id;
+      }
+
+      public String getReferenceName() {
+        return referenceName;
+      }
+
+      public long getStart() {
+        return start;
+      }
+
+      public long getEnd() {
+        return end;
+      }
+
+      public int getAltCount() {
+        return altCount;
+      }
+
+      public int[] getGenotypes() {
+        return genotypes;
+      }
+    }
+
+    /**
+     * Consumes shards and produces LD between all variants within a given shard and all variants
+     * within window. Note: for pairs that are both found within a shard, LD is computed once and
+     * output twice. For pairs between shards, LD is computed and outputted once per shard. This
+     * allows for processing the data without having special logic for shards at boundaries
+     */
+    public ComputeLdWorker(GenomicsFactory.OfflineAuth auth, long window, double cutoff) {
       this.auth = auth;
       this.window = window;
       this.cutoff = cutoff;
     }
 
-    private double computeLd(List<VariantCall> aVar, int aRefGenotype, List<VariantCall> bVar,
-        int bRefGenotype) {
+    class VariantProcessor {
+      class CallSetGenotype {
+        private final String id;
+        private final int genotypeCount;
 
-      if (aVar.size() != bVar.size()) {
-        throw new IllegalArgumentException("Inconsistent number of variant calls.");
-      }
-
-      double[][] tempValues = new double[2][2 * aVar.size()];
-      Iterator<VariantCall> aIter = aVar.iterator();
-      Iterator<VariantCall> bIter = bVar.iterator();
-
-      int[] refGenotypes = {aRefGenotype, bRefGenotype};
-
-      int n = 0;
-
-      while (aIter.hasNext() && bIter.hasNext()) {
-        VariantCall[] calls = {aIter.next(), bIter.next()};
-
-        if (!calls[0].getCallSetId().equals(calls[1].getCallSetId())
-            || calls[0].getGenotypeCount() != calls[1].getGenotypeCount()
-            || calls[0].getGenotypeCount() > 2) {
-          throw new IllegalArgumentException("Call set mismatch.");
+        public CallSetGenotype(String id, int genotypeCount) {
+          this.id = id;
+          this.genotypeCount = genotypeCount;
         }
 
-        for (int g = 0; g < calls[0].getGenotypeCount(); g++) {
-          if (calls[0].getGenotype(g) == -1 || calls[1].getGenotype(g) == -1) {
-            continue;
-          }
+        public String getId() {
+          return id;
+        }
 
-          for (int i = 0; i < 2; i++) {
-            tempValues[i][n] = calls[i].getGenotype(g) == refGenotypes[g] ? 0 : 1;
-          }
-
-          n++;
+        public int getGenotypeCount() {
+          return genotypeCount;
         }
       }
 
-      // Should always match because of size check above.
-      assert aIter.hasNext() == bIter.hasNext();
+      private final String referenceName;
+      private final CallSetGenotype[] callSetGenotypes;
+      private final int totalGenotypesCount;
+      private long lastStart;
 
-      double[][] values = new double[2][n];
+      public VariantProcessor(Variant var) {
+        List<VariantCall> calls = var.getCallsList();
+        int totalGenotypesCount = 0;
+        CallSetGenotype[] callSetGenotypes = new CallSetGenotype[calls.size()];
+        for (int i = 0; i < calls.size(); i++) {
+          callSetGenotypes[i] =
+              new CallSetGenotype(calls.get(i).getCallSetId(), calls.get(i).getGenotypeCount());
+          totalGenotypesCount += callSetGenotypes[i].genotypeCount;
+        }
 
-      for (int i = 0; i < 2; i++) {
-        System.arraycopy(tempValues[i], 0, values[i], 0, n);
+        this.referenceName = var.getReferenceName();
+        this.lastStart = var.getStart();
+        this.totalGenotypesCount = totalGenotypesCount;
+        this.callSetGenotypes = callSetGenotypes;
       }
 
-      return (new PearsonsCorrelation()).correlation(values[0], values[1]);
+      public SimpleVariant checkAndConvVariant(Variant var) {
+        if (!referenceName.equals(var.getReferenceName())) {
+          throw new IllegalArgumentException("Variant references do not match in shard.");
+        }
+
+        if (var.getStart() < lastStart) {
+          throw new IllegalArgumentException("Variants in shard not sorted by start.");
+        }
+
+        lastStart = var.getStart();
+
+        List<VariantCall> calls = var.getCallsList();
+
+        if (callSetGenotypes.length != calls.size()) {
+          throw new IllegalArgumentException("Number of variant calls do not match in shard.");
+        }
+
+        int[] genotypes = new int[totalGenotypesCount];
+
+        for (int i = 0, j = 0; i < callSetGenotypes.length; i++) {
+          VariantCall vc = calls.get(i);
+
+          if (!callSetGenotypes[i].getId().equals(vc.getCallSetId())
+              || callSetGenotypes[i].getGenotypeCount() != vc.getGenotypeCount()) {
+            throw new IllegalArgumentException("Call sets do not match in shard.");
+          }
+
+          for (int k = 0; k < callSetGenotypes[i].getGenotypeCount(); k++, j++) {
+            genotypes[j] = vc.getGenotype(k);
+
+            if (genotypes[j] < -1 || genotypes[j] > var.getAlternateBasesCount()) {
+              throw new IllegalArgumentException("Genotype outside allowable range.");
+            }
+          }
+        }
+
+        return new SimpleVariant(var.getId(), var.getReferenceName(), var.getStart(), var.getEnd(),
+            var.getAlternateBasesCount(), genotypes);
+      }
     }
 
-    /*
-     * Print all within shard/reference and variants within window. NOTE: this means that
-     * comparisons where both variants are within a shard will be computed once and outputted twice,
-     * whereas those across shards will be computed twice and outputted once per shard.
-     */
+    private double computeLd(int[] firstGenotypes, int firstRefGenotype, int[] secondGenotypes,
+        int secondRefGenotype) {
 
-    // 1. Create new StreamVariantsRequest with window -- consider using non-STRICT boundary
-    // requirement
-    // keep track of original start/end (output only strictly within boundary)
-    // Repeat until list is empty:
-    // Read new value
-    // Scan through list until cur
-    // If iv > window of cv
-    // Remove
-    // else
-    // Compute LD against list.end and output
-    // if cv is past end ----> delete it
+      assert firstGenotypes.length == secondGenotypes.length;
 
+      ArrayList<Double> firstValues = new ArrayList<Double>();
+      ArrayList<Double> secondValues = new ArrayList<Double>();
 
-    // TODO: tests -- window > shard, shard > window, variants overlapping shard boundary, window
-    // boundary.
-    // reference boundary. two variants both overlapping the same shard boundary
-    // 1bp shards, shards that go to 0, past end of chromosome, shards with no variants
+      for (int i = 0; i < firstGenotypes.length; i++) {
+        if (firstGenotypes[i] == -1 || secondGenotypes[i] == -1) {
+          continue;
+        }
 
-    private static String variantRefToName(Variant var, int refGenotype) {
-      return var.getId() + ":" + var.getReferenceName() + ":" + var.getStart() + ":" + var.getEnd() + ((var.getAlternateBasesCount() > 1) ? (":" + refGenotype) : "");
+        firstValues.add(firstGenotypes[i] == firstRefGenotype ? 0.0 : 1.0);
+        secondValues.add(secondGenotypes[i] == secondRefGenotype ? 0.0 : 1.0);
+      }
+
+      return (new PearsonsCorrelation()).correlation(Doubles.toArray(firstValues),
+          Doubles.toArray(secondValues));
+    }
+
+    private static String variantRefToName(SimpleVariant var, int refGenotype) {
+      return var.getId() + ":" + var.getReferenceName() + ":" + var.getStart() + ":" + var.getEnd()
+          + ((var.getAltCount() > 1) ? (":" + refGenotype) : "");
     }
 
     @Override
     public void processElement(ProcessContext c)
         throws java.io.IOException, java.security.GeneralSecurityException {
+
+      VariantProcessor vp = null;
+
       /*
        * Our "working set" of variants that could overlap future variants. All these must be before
        * or overlapping the shardEnd. Should not contain anything that ends more than window from
        * the start of the previous variant.
        */
-      LinkedList vars = new LinkedList<Variant>();
+      LinkedList vars = new LinkedList<SimpleVariant>();
 
-      // NOTE: if chromosome then need way to compare order of chromosomes
       long shardStart = c.element().getStart();
 
       // NOTE: actually one past the end
       long shardEnd = c.element().getEnd();
 
-      // Extend shard by window. See note above about which comparisons are
-      // computed/output.
+      // Extend shard by window. See note above about which comparisons are computed/output.
       StreamVariantsRequest extendedShard =
           c.element().toBuilder().setStart(shardStart > window ? (shardStart - window) : 0)
               .setEnd(shardEnd + window).build();
 
-      // Use OVERLAPS because it matches the semantics for "within window"
-      // However, comparisons note uses STRICT semantics.
+      // Use OVERLAPS ShardBoundary.Requirement because it matches the semantics for "within
+      // window".
+      // However, enforce STRICT semantics are enforced below for which variants we output LD for.
       Iterator<StreamVariantsResponse> streamIter =
           new VariantStreamIterator(extendedShard, auth, ShardBoundary.Requirement.OVERLAPS, null);
 
       // Variants we have read in from the stream but have not yet processed.
       Queue<Variant> varsToProcess = new LinkedList<Variant>();
 
-      Variant cVar = null;
+      SimpleVariant cVar = null;
       while (!varsToProcess.isEmpty() || streamIter.hasNext()) {
         if (varsToProcess.isEmpty()) {
           varsToProcess.addAll(streamIter.next().getVariantsList());
           continue;
         }
 
-        // Make sure that the next variant is on the same reference and does not
-        // start before this one.
-        assert cVar == null
-            || (cVar.getReferenceName().equals(varsToProcess.peek().getReferenceName())
-                && cVar.getStart() <= varsToProcess.peek().getStart());
+        if (vp == null) {
+          vp = new VariantProcessor(varsToProcess.peek());
+        }
 
         // Variant to compare to those in vars.
-        cVar = varsToProcess.remove();
+        cVar = vp.checkAndConvVariant(varsToProcess.remove());
 
         // Manually enforce "STRICT" overlaps here.
         if (cVar.getStart() >= shardStart) {
-          ListIterator<Variant> varsIter = vars.listIterator(0);
+          ListIterator<SimpleVariant> varsIter = vars.listIterator(0);
           while (varsIter.hasNext()) {
-            Variant lVar = varsIter.next();
+            SimpleVariant lVar = varsIter.next();
 
-            // NOTE: end is one past end
             if (lVar.getEnd() + window <= cVar.getStart()) {
               varsIter.remove();
             } else {
               // If the number of alternative bases is > 1, then we do each allele vs. all others.
-              for (int lRefGenotype = 0; lRefGenotype <= ((lVar.getAlternateBasesCount() > 1) ? lVar.getAlternateBasesCount() : 0); lRefGenotype++) {
-                for (int cRefGenotype = 0; cRefGenotype <= ((cVar.getAlternateBasesCount() > 1) ? cVar.getAlternateBasesCount() : 0); cRefGenotype++) {
+              for (int lRefGenotype = 0; lRefGenotype <= ((lVar.getAltCount() > 1)
+                  ? lVar.getAltCount() : 0); lRefGenotype++) {
+                for (int cRefGenotype = 0; cRefGenotype <= ((cVar.getAltCount() > 1)
+                    ? cVar.getAltCount() : 0); cRefGenotype++) {
 
-                  double corr = computeLd(lVar.getCallsList(), lRefGenotype, cVar.getCallsList(), cRefGenotype);
+                  double corr = computeLd(lVar.getGenotypes(), lRefGenotype, cVar.getGenotypes(),
+                      cRefGenotype);
 
                   // NOTE: NaN's are discarded (caused by no variation in one or more variant)
                   if (corr >= cutoff || corr <= -cutoff) {
                     // lVar must be before shardEnd (checked when adding to vars)
                     // if also after shardStart then it is within the shard
                     if (lVar.getStart() >= shardStart) {
-                      c.output(variantRefToName(lVar,lRefGenotype) + " " + variantRefToName(cVar,cRefGenotype) + " " + corr);
+                      c.output(variantRefToName(lVar, lRefGenotype) + " "
+                          + variantRefToName(cVar, cRefGenotype) + " " + corr);
                     }
 
                     // cVar must be after shardStart (check before this loop)
                     // if also before shardEnd then it is within shard
                     if (cVar.getStart() < shardEnd) {
-                      c.output(variantRefToName(cVar,cRefGenotype) + " " + variantRefToName(lVar,lRefGenotype) + " " + corr);
+                      c.output(variantRefToName(cVar, cRefGenotype) + " "
+                          + variantRefToName(lVar, lRefGenotype) + " " + corr);
                     }
                   }
                 }
@@ -227,13 +328,25 @@ public class LinkageDisequilibrium {
     }
   }
 
+  public interface LinkageDisequilibriumOptions extends GenomicsDatasetOptions {
+    @Description("Window to use in computing LD.")
+    @Default.Long(1000000L)
+    Long getWindow();
+
+    void setWindow(Long window);
+
+    @Description("Linkage disequilibrium r cutoff.")
+    @Default.Double(0.2)
+    Double getLdCutoff();
+
+    void setLdCutoff(Double ldCutoff);
+  }
+
   public static void main(String[] args) throws IOException, GeneralSecurityException {
-    // Register the options so that they show up via --help
-    PipelineOptionsFactory.register(GenomicsDatasetOptions.class);
-    GenomicsDatasetOptions options =
-        PipelineOptionsFactory.fromArgs(args).withValidation().as(GenomicsDatasetOptions.class);
-    // Option validation is not yet automatic, we make an explicit call here.
-    GenomicsDatasetOptions.Methods.validateOptions(options);
+    PipelineOptionsFactory.register(LinkageDisequilibriumOptions.class);
+    LinkageDisequilibriumOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
+        .as(LinkageDisequilibriumOptions.class);
+    LinkageDisequilibriumOptions.Methods.validateOptions(options);
 
     final GenomicsFactory.OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
@@ -249,9 +362,8 @@ public class LinkageDisequilibrium {
             options.getBasesPerShard());
 
     p.begin().apply(Create.of(requests))
-        .apply(ParDo.named("ComputeLD").of(new ProcessVariants(auth, 500L, 0.2)))
-
-    // TODO: put into bitstore
+        .apply(ParDo.named("ComputeLD")
+            .of(new ComputeLdWorker(auth, options.getWindow(), options.getLdCutoff())))
         .apply(TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run();

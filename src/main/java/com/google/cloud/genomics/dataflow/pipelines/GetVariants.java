@@ -17,16 +17,16 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Proto2Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
 import com.google.cloud.dataflow.sdk.io.TextIO;
-import com.google.cloud.dataflow.sdk.options.Default;
-import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.genomics.dataflow.functions.LinkageDisequilibriumCalculator;
+import com.google.cloud.genomics.dataflow.readers.VariantStreamer;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 import com.google.cloud.genomics.utils.GenomicsFactory;
+import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.cloud.genomics.utils.ShardUtils;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.Variant;
@@ -36,42 +36,18 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 
 /**
- * Computes linkage disequilibrium r between all variants inside the references list of a dataset to
- * all others within window. Outputs name1, name2, num, r for those pairs whose r is at least
- * cutoff. For variants with greater than two alleles, the top two alleles are used for the
- * comparison and are appended to the output name.
- * 
- * TODO: Option to work on unphased data.
- * 
- * TODO: Add tests, with special attention to the following cases: 1. When the window size is
- * greater than a shard size, and the converse. 2. Variants that overlap a shard, window, and
- * reference boundary (off-by-one errors, in particular). 3. Multiple variants at the same start
- * and/or end, including overlaps with shard, window, and reference boundaries. 4. 1 bp shards,
- * empty shards, shards past the end of the chromosome.
+ * At the moment this is just a simple variant counting pipeline, intended as an example for reading
+ * data from the Genomics gRPC API.
  */
-public class LinkageDisequilibrium {
-  /**
-   * Additional options for computing LD.
-   */
-  public interface LinkageDisequilibriumOptions extends GenomicsDatasetOptions {
-    @Description("Window to use in computing LD.")
-    @Default.Long(1000000L)
-    Long getWindow();
-
-    void setWindow(Long window);
-
-    @Description("Linkage disequilibrium r cutoff.")
-    @Default.Double(0.2)
-    Double getLdCutoff();
-
-    void setLdCutoff(Double ldCutoff);
-  }
+public class GetVariants {
 
   public static void main(String[] args) throws IOException, GeneralSecurityException {
-    PipelineOptionsFactory.register(LinkageDisequilibriumOptions.class);
-    LinkageDisequilibriumOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(LinkageDisequilibriumOptions.class);
-    LinkageDisequilibriumOptions.Methods.validateOptions(options);
+    // Register the options so that they show up via --help
+    PipelineOptionsFactory.register(GenomicsDatasetOptions.class);
+    GenomicsDatasetOptions options =
+        PipelineOptionsFactory.fromArgs(args).withValidation().as(GenomicsDatasetOptions.class);
+    // Option validation is not yet automatic, we make an explicit call here.
+    GenomicsDatasetOptions.Methods.validateOptions(options);
 
     final GenomicsFactory.OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
@@ -87,10 +63,13 @@ public class LinkageDisequilibrium {
             options.getBasesPerShard());
 
     p.begin().apply(Create.of(requests))
-        .apply(ParDo.named("ComputeLD")
-            .of(new LinkageDisequilibriumCalculator(auth, options.getWindow(),
-                options.getLdCutoff())))
-        .apply(TextIO.Write.withoutSharding().to(options.getOutput()));
+        .apply(new VariantStreamer(auth, ShardBoundary.Requirement.STRICT, null))
+        .apply(ParDo.named("ConvToString").of(new DoFn<Variant, String>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(c.element().getAllFields().toString());
+          }
+        })).apply(TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run();
   }

@@ -49,9 +49,9 @@ import java.util.Queue;
 
 /**
  * Computes linkage disequilibrium r between all variants inside the references list of a dataset to
- * all others within window. Outputs those pairs whose r is at least cutoff. For variants with
- * greater than two alleles ("Multiallelic" variants), each allele is compared to others and the
- * output name is prefixed with ":RefAllele".
+ * all others within window. Outputs name1, name2, num, r for those pairs whose r is at least
+ * cutoff. For variants with greater than two alleles, the top two alleles are used for the
+ * comparison and are appended to the output name.
  * 
  * TODO: Option to work on unphased data.
  * 
@@ -73,21 +73,27 @@ public class LinkageDisequilibrium {
      * within a window
      */
     private class SimpleVariant {
+      private final String name;
       private final String id;
       private final String referenceName;
       private final long start;
       private final long end;
-      private final int altCount;
-      private final int[] genotypes;
+      private final byte[] genotypes;
 
-      public SimpleVariant(String id, String referenceName, long start, long end, int altCount,
-          int[] genotypes) {
+      private final int zeroAllele;
+      private final int oneAllele;
+
+      public SimpleVariant(String id, String referenceName, long start, long end, int zeroAllele,
+          int oneAllele, byte[] genotypes, int alternateBasesCount) {
         this.id = id;
         this.referenceName = referenceName;
         this.start = start;
         this.end = end;
-        this.altCount = altCount;
+        this.zeroAllele = zeroAllele;
+        this.oneAllele = oneAllele;
         this.genotypes = genotypes;
+        this.name = id + ":" + referenceName + ":" + start + ":" + end
+            + ((alternateBasesCount > 1) ? (":" + zeroAllele + ":" + oneAllele) : "");
       }
 
       public String getId() {
@@ -106,12 +112,38 @@ public class LinkageDisequilibrium {
         return end;
       }
 
-      public int getAltCount() {
-        return altCount;
+      public int getZeroAllele() {
+        return zeroAllele;
       }
 
-      public int[] getGenotypes() {
+      public int getOneAllele() {
+        return oneAllele;
+      }
+
+      public byte[] getGenotypes() {
         return genotypes;
+      }
+
+      public String getName() {
+        return name;
+      }
+    }
+
+    public class ComputeLdResult {
+      private final int compCount;
+      private final double r;
+
+      public ComputeLdResult(int compCount, double r) {
+        this.compCount = compCount;
+        this.r = r;
+      }
+
+      public int getCompCount() {
+        return compCount;
+      }
+
+      public double getR() {
+        return r;
       }
     }
 
@@ -167,7 +199,9 @@ public class LinkageDisequilibrium {
         this.callSetGenotypes = callSetGenotypes;
       }
 
+      // returns null if there is no variation for this variant
       public SimpleVariant checkAndConvVariant(Variant var) {
+
         if (!referenceName.equals(var.getReferenceName())) {
           throw new IllegalArgumentException("Variant references do not match in shard.");
         }
@@ -185,6 +219,7 @@ public class LinkageDisequilibrium {
         }
 
         int[] genotypes = new int[totalGenotypesCount];
+        int[] genotypeCounts = new int[var.getAlternateBasesCount() + 1];
 
         for (int i = 0, j = 0; i < callSetGenotypes.length; i++) {
           VariantCall vc = calls.get(i);
@@ -200,17 +235,63 @@ public class LinkageDisequilibrium {
             if (genotypes[j] < -1 || genotypes[j] > var.getAlternateBasesCount()) {
               throw new IllegalArgumentException("Genotype outside allowable range.");
             }
+
+            if (genotypes[j] != -1) {
+              genotypeCounts[genotypes[j]]++;
+            }
           }
         }
 
+        int genotypesFound = 0;
+        for (int i = 0; i <= var.getAlternateBasesCount(); i++) {
+          if (genotypeCounts[i] > 0) {
+            genotypesFound++;
+          }
+        }
+
+        // if there is no variation, return null
+        if (genotypesFound < 2) {
+          return null;
+        }
+
+        int zeroAllele = 0;
+        int oneAllele = 1;
+        if (var.getAlternateBasesCount() > 1) {
+          // Multiallelic variant
+
+          // find the two most used alleles, breaking ties with the earlier allele
+          int max1Allele = genotypeCounts[0] >= genotypeCounts[1] ? 0 : 1;
+          int max2Allele = 1 - max1Allele;
+
+          for (int i = 2; i <= var.getAlternateBasesCount(); i++) {
+            if (genotypeCounts[i] > genotypeCounts[max1Allele]) {
+              max2Allele = max1Allele;
+              max1Allele = i;
+            } else if (genotypeCounts[i] > genotypeCounts[max2Allele]) {
+              max2Allele = i;
+            }
+
+            if (max1Allele != 0 && max2Allele != 0) {
+              zeroAllele = max1Allele;
+              oneAllele = max2Allele;
+            } else {
+              oneAllele = max1Allele == 0 ? max2Allele : max1Allele;
+            }
+          }
+        }
+
+        byte[] genotypesConv = new byte[genotypes.length];
+        for (int i = 0; i < genotypes.length; i++) {
+          genotypesConv[i] =
+              (byte) ((genotypes[i] == zeroAllele) ? 0 : (genotypes[i] == oneAllele) ? 1 : -1);
+        }
+
         return new SimpleVariant(var.getId(), var.getReferenceName(), var.getStart(), var.getEnd(),
-            var.getAlternateBasesCount(), genotypes);
+            zeroAllele, oneAllele, genotypesConv, var.getAlternateBasesCount());
       }
     }
 
-    private double computeLd(int[] firstGenotypes, int firstRefGenotype, int[] secondGenotypes,
-        int secondRefGenotype) {
-
+    private ComputeLdResult computeLd(byte[] firstGenotypes, byte[] secondGenotypes) {
       assert firstGenotypes.length == secondGenotypes.length;
 
       ArrayList<Double> firstValues = new ArrayList<Double>();
@@ -221,17 +302,12 @@ public class LinkageDisequilibrium {
           continue;
         }
 
-        firstValues.add(firstGenotypes[i] == firstRefGenotype ? 0.0 : 1.0);
-        secondValues.add(secondGenotypes[i] == secondRefGenotype ? 0.0 : 1.0);
+        firstValues.add((double) firstGenotypes[i]);
+        secondValues.add((double) secondGenotypes[i]);
       }
 
-      return (new PearsonsCorrelation()).correlation(Doubles.toArray(firstValues),
-          Doubles.toArray(secondValues));
-    }
-
-    private static String variantRefToName(SimpleVariant var, int refGenotype) {
-      return var.getId() + ":" + var.getReferenceName() + ":" + var.getStart() + ":" + var.getEnd()
-          + ((var.getAltCount() > 1) ? (":" + refGenotype) : "");
+      return new ComputeLdResult(firstValues.size(), (new PearsonsCorrelation())
+          .correlation(Doubles.toArray(firstValues), Doubles.toArray(secondValues)));
     }
 
     @Override
@@ -266,7 +342,6 @@ public class LinkageDisequilibrium {
       // Variants we have read in from the stream but have not yet processed.
       Queue<Variant> varsToProcess = new LinkedList<Variant>();
 
-      SimpleVariant cVar = null;
       while (!varsToProcess.isEmpty() || streamIter.hasNext()) {
         if (varsToProcess.isEmpty()) {
           varsToProcess.addAll(streamIter.next().getVariantsList());
@@ -278,7 +353,11 @@ public class LinkageDisequilibrium {
         }
 
         // Variant to compare to those in vars.
-        cVar = vp.checkAndConvVariant(varsToProcess.remove());
+        SimpleVariant cVar = vp.checkAndConvVariant(varsToProcess.remove());
+
+        if (cVar == null) {
+          continue;
+        }
 
         // Manually enforce "STRICT" overlaps here.
         if (cVar.getStart() >= shardStart) {
@@ -289,31 +368,22 @@ public class LinkageDisequilibrium {
             if (lVar.getEnd() + window <= cVar.getStart()) {
               varsIter.remove();
             } else {
-              // If the number of alternative bases is > 1, then we do each allele vs. all others.
-              for (int lRefGenotype = 0; lRefGenotype <= ((lVar.getAltCount() > 1)
-                  ? lVar.getAltCount() : 0); lRefGenotype++) {
-                for (int cRefGenotype = 0; cRefGenotype <= ((cVar.getAltCount() > 1)
-                    ? cVar.getAltCount() : 0); cRefGenotype++) {
+              ComputeLdResult cr = computeLd(lVar.getGenotypes(), cVar.getGenotypes());
 
-                  double corr = computeLd(lVar.getGenotypes(), lRefGenotype, cVar.getGenotypes(),
-                      cRefGenotype);
+              // NOTE: NaN's are discarded (caused by no variation in one or more variant)
+              if (cr.getR() >= cutoff || cr.getR() <= -cutoff) {
+                // lVar must be before shardEnd (checked when adding to vars)
+                // if also after shardStart then it is within the shard
+                if (lVar.getStart() >= shardStart) {
+                  c.output(lVar.getName() + " " + cVar.getName() + " " + cr.getCompCount() + " "
+                      + cr.getR());
+                }
 
-                  // NOTE: NaN's are discarded (caused by no variation in one or more variant)
-                  if (corr >= cutoff || corr <= -cutoff) {
-                    // lVar must be before shardEnd (checked when adding to vars)
-                    // if also after shardStart then it is within the shard
-                    if (lVar.getStart() >= shardStart) {
-                      c.output(variantRefToName(lVar, lRefGenotype) + " "
-                          + variantRefToName(cVar, cRefGenotype) + " " + corr);
-                    }
-
-                    // cVar must be after shardStart (check before this loop)
-                    // if also before shardEnd then it is within shard
-                    if (cVar.getStart() < shardEnd) {
-                      c.output(variantRefToName(cVar, cRefGenotype) + " "
-                          + variantRefToName(lVar, lRefGenotype) + " " + corr);
-                    }
-                  }
+                // cVar must be after shardStart (check before this loop)
+                // if also before shardEnd then it is within shard
+                if (cVar.getStart() < shardEnd) {
+                  c.output(cVar.getName() + " " + lVar.getName() + " " + cr.getCompCount() + " "
+                      + cr.getR());
                 }
               }
             }
@@ -328,6 +398,9 @@ public class LinkageDisequilibrium {
     }
   }
 
+  /**
+   * Additional options for computing LD.
+   */
   public interface LinkageDisequilibriumOptions extends GenomicsDatasetOptions {
     @Description("Window to use in computing LD.")
     @Default.Long(1000000L)

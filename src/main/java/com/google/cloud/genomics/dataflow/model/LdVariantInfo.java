@@ -14,11 +14,12 @@
 package com.google.cloud.genomics.dataflow.model;
 
 import com.google.genomics.v1.Variant;
+import java.io.Serializable;
 
 /**
  * Position and allele information for a given variant.
  */
-public class LdVariantInfo {
+public class LdVariantInfo implements Serializable {
   private final String id;
   private final String referenceName;
   private final long start;

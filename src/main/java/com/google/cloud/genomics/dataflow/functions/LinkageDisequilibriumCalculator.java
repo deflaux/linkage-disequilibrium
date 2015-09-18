@@ -14,19 +14,16 @@
 package com.google.cloud.genomics.dataflow.functions;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.cloud.genomics.utils.grpc.VariantStreamIterator;
-import com.google.common.primitives.Doubles;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
 
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
-
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.ListIterator;
@@ -38,28 +35,10 @@ import java.util.Queue;
  * For pairs between shards, LD is computed and outputted once per shard. This allows for processing
  * the data without having special logic for shards at boundaries
  */
-public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest, String> {
+public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest, LdValue> {
   private final GenomicsFactory.OfflineAuth auth;
   private final long window;
   private final double cutoff;
-
-  public class ComputedLdValues {
-    private final int compCount;
-    private final double r;
-
-    public ComputedLdValues(int compCount, double r) {
-      this.compCount = compCount;
-      this.r = r;
-    }
-
-    public int getCompCount() {
-      return compCount;
-    }
-
-    public double getR() {
-      return r;
-    }
-  }
 
   public LinkageDisequilibriumCalculator(GenomicsFactory.OfflineAuth auth, long window,
       double cutoff) {
@@ -68,30 +47,9 @@ public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest,
     this.cutoff = cutoff;
   }
 
-  private ComputedLdValues computeLd(byte[] firstGenotypes, byte[] secondGenotypes) {
-    assert firstGenotypes.length == secondGenotypes.length;
-
-    ArrayList<Double> firstValues = new ArrayList<Double>();
-    ArrayList<Double> secondValues = new ArrayList<Double>();
-
-    for (int i = 0; i < firstGenotypes.length; i++) {
-      if (firstGenotypes[i] == -1 || secondGenotypes[i] == -1) {
-        continue;
-      }
-
-      firstValues.add((double) firstGenotypes[i]);
-      secondValues.add((double) secondGenotypes[i]);
-    }
-
-    return new ComputedLdValues(firstValues.size(), (new PearsonsCorrelation())
-        .correlation(Doubles.toArray(firstValues), Doubles.toArray(secondValues)));
-  }
-
   @Override
   public void processElement(ProcessContext c)
       throws java.io.IOException, java.security.GeneralSecurityException {
-
-    LdVariantProcessor vp = null;
 
     /*
      * Our "working set" of variants that could overlap future variants. All these must be before or
@@ -99,6 +57,8 @@ public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest,
      * start of the previous variant.
      */
     LinkedList vars = new LinkedList<LdVariant>();
+
+    String shardReference = c.element().getReferenceName();
 
     long shardStart = c.element().getStart();
 
@@ -119,6 +79,10 @@ public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest,
     // Variants we have read in from the stream but have not yet processed.
     Queue<Variant> varsToProcess = new LinkedList<Variant>();
 
+    long lastStart = -1;
+
+    LdVariantProcessor vp = null;
+
     while (!varsToProcess.isEmpty() || streamIter.hasNext()) {
       if (varsToProcess.isEmpty()) {
         varsToProcess.addAll(streamIter.next().getVariantsList());
@@ -130,46 +94,55 @@ public class LinkageDisequilibriumCalculator extends DoFn<StreamVariantsRequest,
       }
 
       // Variant to compare to those in vars.
-      LdVariant cVar = vp.checkAndConvVariant(varsToProcess.remove());
+      LdVariant qVar = vp.convertVariant(varsToProcess.remove());
 
-      if (cVar == null) {
+      if (!shardReference.equals(qVar.getInfo().getReferenceName())) {
+        throw new IllegalArgumentException("Variant references do not match in shard.");
+      }
+
+      if (qVar.getInfo().getStart() < lastStart) {
+        throw new IllegalArgumentException("Variants in shard not sorted by start.");
+      }
+
+      lastStart = qVar.getInfo().getStart();
+
+      if (!qVar.hasVariation()) {
         continue;
       }
 
-      // Manually enforce "STRICT" overlaps here.
-      if (cVar.getStart() >= shardStart) {
+      // Enforce "STRICT" overlaps here.
+      if (qVar.getInfo().getStart() >= shardStart) {
         ListIterator<LdVariant> varsIter = vars.listIterator(0);
         while (varsIter.hasNext()) {
-          LdVariant lVar = varsIter.next();
+          LdVariant tVar = varsIter.next();
 
-          if (lVar.getEnd() + window <= cVar.getStart()) {
+          if (tVar.getInfo().getEnd() + window <= qVar.getInfo().getStart()) {
             varsIter.remove();
           } else {
-            ComputedLdValues cr = computeLd(lVar.getGenotypes(), cVar.getGenotypes());
+            LdValue cr = qVar.computeLd(tVar);
 
             // NOTE: NaN's are discarded (caused by no variation in one or more variant)
             if (cr.getR() >= cutoff || cr.getR() <= -cutoff) {
-              // lVar must be before shardEnd (checked when adding to vars)
-              // if also after shardStart then it is within the shard
-              if (lVar.getStart() >= shardStart) {
-                c.output(lVar.getName() + " " + cVar.getName() + " " + cr.getCompCount() + " "
-                    + cr.getR());
+              // qVar must be after shardStart (check before this loop)
+              // if also before shardEnd then it is within shard
+              if (qVar.getInfo().getStart() < shardEnd) {
+                c.output(cr);
               }
 
-              // cVar must be after shardStart (check before this loop)
-              // if also before shardEnd then it is within shard
-              if (cVar.getStart() < shardEnd) {
-                c.output(cVar.getName() + " " + lVar.getName() + " " + cr.getCompCount() + " "
-                    + cr.getR());
+              // tVar must be before shardEnd (checked when adding to vars)
+              // if also after shardStart then it is within the shard
+              if (tVar.getInfo().getStart() >= shardStart) {
+                c.output(cr.reverse());
               }
+
             }
           }
         }
       }
 
       // Store variants inside the Shard region to compare to variants read in later.
-      if (cVar.getStart() < shardEnd) {
-        vars.add(cVar);
+      if (qVar.getInfo().getStart() < shardEnd) {
+        vars.add(qVar);
       }
     }
   }

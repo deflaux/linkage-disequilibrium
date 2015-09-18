@@ -13,63 +13,71 @@
  */
 package com.google.cloud.genomics.dataflow.model;
 
+import com.google.cloud.genomics.dataflow.model.LdValue;
+import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
+
 /**
  * A small container to store variant data needed to compute LD.
  *
  */
 public class LdVariant {
-  private final String name;
-  private final String id;
-  private final String referenceName;
-  private final long start;
-  private final long end;
-  private final byte[] genotypes;
+  public enum Genotype {
+    UNKNOWN, ZERO, ONE
+  }
 
-  private final int zeroAllele;
-  private final int oneAllele;
+  private final LdVariantInfo info;
 
-  public LdVariant(String id, String referenceName, long start, long end, int zeroAllele,
-      int oneAllele, byte[] genotypes, int alternateBasesCount) {
-    this.id = id;
-    this.referenceName = referenceName;
-    this.start = start;
-    this.end = end;
-    this.zeroAllele = zeroAllele;
-    this.oneAllele = oneAllele;
+  private final Genotype[] genotypes;
+
+  public LdVariant(LdVariantInfo info, Genotype[] genotypes) {
+    this.info = info;
     this.genotypes = genotypes;
-    this.name = id + ":" + referenceName + ":" + start + ":" + end
-        + ((alternateBasesCount > 1) ? (":" + zeroAllele + ":" + oneAllele) : "");
   }
 
-  public String getId() {
-    return id;
+  public LdVariantInfo getInfo() {
+    return info;
   }
 
-  public String getReferenceName() {
-    return referenceName;
+  public boolean hasVariation() {
+    int firstNonMissing;
+
+    for (firstNonMissing = 0; firstNonMissing < genotypes.length
+        && genotypes[firstNonMissing] == Genotype.UNKNOWN; firstNonMissing++) {
+    };
+
+    for (int i = firstNonMissing + 1; i < genotypes.length; i++)
+      if (genotypes[i] != Genotype.UNKNOWN && genotypes[i] != genotypes[firstNonMissing])
+        return true;
+
+    return false;
   }
 
-  public long getStart() {
-    return start;
-  }
+  public LdValue computeLd(LdVariant target) {
+    assert this.genotypes.length == target.genotypes.length;
 
-  public long getEnd() {
-    return end;
-  }
+    /*
+     * Compute how often both a and b are Genotype.ONE, or when one or the other is. All LD values
+     * can be computed from these simple counts.
+     */
+    int[][] count = new int[2][2];
+    for (int i = 0; i < this.genotypes.length; i++) {
+      if (this.genotypes[i] != Genotype.UNKNOWN && target.genotypes[i] != Genotype.UNKNOWN) {
+        count[this.genotypes[i] == Genotype.ZERO ? 0 : 1][target.genotypes[i] == Genotype.ZERO ? 0
+            : 1]++;
+      }
+    }
 
-  public int getZeroAllele() {
-    return zeroAllele;
-  }
+    long n = count[0][0] + count[0][1] + count[1][0] + count[1][1];
+    long ab = count[1][1];
+    long a = count[1][1] + count[1][0];
+    long b = count[1][1] + count[0][1];
 
-  public int getOneAllele() {
-    return oneAllele;
-  }
+    // TODO: Test this throughly, particularly investigate numerical stability.
+    double top = (double) (n * ab - a * b);
+    double r = top / Math.sqrt(a * (n - a) * b * (n - b));
+    double dPrime =
+        top / (top < 0 ? Math.min(a * b, (n - a) * (n - b)) : Math.min(a * (n - b), (n - a) * b));
 
-  public byte[] getGenotypes() {
-    return genotypes;
-  }
-
-  public String getName() {
-    return name;
+    return new LdValue(this.info, target.info, (int) n, r, dPrime);
   }
 }

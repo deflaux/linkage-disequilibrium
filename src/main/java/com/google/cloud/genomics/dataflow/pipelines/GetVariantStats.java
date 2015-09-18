@@ -33,13 +33,14 @@ import com.google.genomics.v1.Variant;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * At the moment this is just a simple variant counting pipeline, intended as an example for reading
  * data from the Genomics gRPC API.
  */
-public class GetVariants {
+public class GetVariantStats {
 
   public static void main(String[] args) throws IOException, GeneralSecurityException {
     // Register the options so that they show up via --help
@@ -62,12 +63,21 @@ public class GetVariants {
         : ShardUtils.getVariantRequests(options.getDatasetId(), options.getReferences(),
             options.getBasesPerShard());
 
+    final int nv = 3;
+
     p.begin().apply(Create.of(requests))
         .apply(new VariantStreamer(auth, ShardBoundary.Requirement.STRICT, null))
-        .apply(ParDo.named("ConvToString").of(new DoFn<Variant, String>() {
+        .apply(ParDo.named("ConvToNum").of(new DoFn<Variant, String>() {
           @Override
           public void processElement(ProcessContext c) {
-            c.output(c.element().getAllFields().toString());
+            long[] alleleCounts = new long[c.element().getAlternateBasesCount() + 2];
+            for (int i = 0; i < c.element().getCallsCount(); i++) {
+              for (int j = 0; j < c.element().getCalls(i).getGenotypeCount(); j++) {
+                alleleCounts[c.element().getCalls(i).getGenotype(j) + 1]++;
+              }
+            }
+
+            c.output(Arrays.toString(alleleCounts));
           }
         })).apply(TextIO.Write.withoutSharding().to(options.getOutput()));
 

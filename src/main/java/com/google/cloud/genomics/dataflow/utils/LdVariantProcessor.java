@@ -14,6 +14,7 @@
 package com.google.cloud.genomics.dataflow.utils;
 
 import com.google.cloud.genomics.dataflow.model.LdVariant;
+import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
 
@@ -41,10 +42,8 @@ public class LdVariantProcessor {
     }
   }
 
-  private final String referenceName;
   private final CallSetGenotype[] callSetGenotypes;
   private final int totalGenotypesCount;
-  private long lastStart;
 
   public LdVariantProcessor(Variant var) {
     List<VariantCall> calls = var.getCallsList();
@@ -56,25 +55,12 @@ public class LdVariantProcessor {
       totalGenotypesCount += callSetGenotypes[i].genotypeCount;
     }
 
-    this.referenceName = var.getReferenceName();
-    this.lastStart = var.getStart();
     this.totalGenotypesCount = totalGenotypesCount;
     this.callSetGenotypes = callSetGenotypes;
   }
 
   // returns null if there is no variation for this variant
-  public LdVariant checkAndConvVariant(Variant var) {
-
-    if (!referenceName.equals(var.getReferenceName())) {
-      throw new IllegalArgumentException("Variant references do not match in shard.");
-    }
-
-    if (var.getStart() < lastStart) {
-      throw new IllegalArgumentException("Variants in shard not sorted by start.");
-    }
-
-    lastStart = var.getStart();
-
+  public LdVariant convertVariant(Variant var) {
     List<VariantCall> calls = var.getCallsList();
 
     if (callSetGenotypes.length != calls.size()) {
@@ -82,7 +68,6 @@ public class LdVariantProcessor {
     }
 
     int[] genotypes = new int[totalGenotypesCount];
-    int[] genotypeCounts = new int[var.getAlternateBasesCount() + 1];
 
     for (int i = 0, j = 0; i < callSetGenotypes.length; i++) {
       VariantCall vc = calls.get(i);
@@ -98,23 +83,7 @@ public class LdVariantProcessor {
         if (genotypes[j] < -1 || genotypes[j] > var.getAlternateBasesCount()) {
           throw new IllegalArgumentException("Genotype outside allowable range.");
         }
-
-        if (genotypes[j] != -1) {
-          genotypeCounts[genotypes[j]]++;
-        }
       }
-    }
-
-    int genotypesFound = 0;
-    for (int i = 0; i <= var.getAlternateBasesCount(); i++) {
-      if (genotypeCounts[i] > 0) {
-        genotypesFound++;
-      }
-    }
-
-    // if there is no variation, return null
-    if (genotypesFound < 2) {
-      return null;
     }
 
     int zeroAllele = 0;
@@ -122,6 +91,12 @@ public class LdVariantProcessor {
     if (var.getAlternateBasesCount() > 1) {
       // Multiallelic variant
 
+      int[] genotypeCounts = new int[var.getAlternateBasesCount() + 1];
+      for (int i = 0; i < genotypes.length; i++) {
+        if (genotypes[i] != -1) {
+          genotypeCounts[genotypes[i]]++;
+        }
+      }
       // find the two most used alleles, breaking ties with the earlier allele
       int max1Allele = genotypeCounts[0] >= genotypeCounts[1] ? 0 : 1;
       int max2Allele = 1 - max1Allele;
@@ -143,14 +118,13 @@ public class LdVariantProcessor {
       }
     }
 
-    byte[] genotypesConv = new byte[genotypes.length];
+    LdVariant.Genotype[] genotypesConv = new LdVariant.Genotype[genotypes.length];
     for (int i = 0; i < genotypes.length; i++) {
-      genotypesConv[i] =
-          (byte) ((genotypes[i] == zeroAllele) ? 0 : (genotypes[i] == oneAllele) ? 1 : -1);
+      genotypesConv[i] = (genotypes[i] == zeroAllele) ? LdVariant.Genotype.ZERO
+          : (genotypes[i] == oneAllele) ? LdVariant.Genotype.ONE : LdVariant.Genotype.UNKNOWN;
     }
 
-    return new LdVariant(var.getId(), var.getReferenceName(), var.getStart(), var.getEnd(),
-        zeroAllele, oneAllele, genotypesConv, var.getAlternateBasesCount());
+    return new LdVariant(new LdVariantInfo(var, oneAllele, zeroAllele), genotypesConv);
   }
 }
 

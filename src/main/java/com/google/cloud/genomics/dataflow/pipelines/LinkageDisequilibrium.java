@@ -21,8 +21,10 @@ import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.genomics.dataflow.functions.LinkageDisequilibriumCalculator;
+import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
@@ -90,7 +92,12 @@ public class LinkageDisequilibrium {
         .apply(ParDo.named("ComputeLD")
             .of(new LinkageDisequilibriumCalculator(auth, options.getWindow(),
                 options.getLdCutoff())))
-        .apply(TextIO.Write.withoutSharding().to(options.getOutput()));
+        .apply(ParDo.named("ConvertToString").of(new DoFn<LdValue, String>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(c.element().toString());
+          }
+        })).apply(TextIO.Write.withoutSharding().to(options.getOutput()));
 
     p.run();
   }

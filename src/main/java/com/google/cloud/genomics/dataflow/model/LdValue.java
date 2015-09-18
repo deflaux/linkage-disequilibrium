@@ -58,7 +58,7 @@ public class LdValue implements Serializable {
   }
 
   public String toString() {
-    return String.format("%s %s %d %lf %lf", query, target, compCount, r, dPrime);
+    return String.format("%s %s %d %f %f", query.toString(), target.toString(), compCount, r, dPrime);
   }
 }
 

@@ -12,11 +12,12 @@
  * the License.
  */
 package com.google.cloud.genomics.dataflow.model;
+import java.io.Serializable;
 
 /**
  * Container to store the results of a LD computation.
  */
-public class LdValue {
+public class LdValue implements Serializable {
   private final LdVariantInfo query;
   private final LdVariantInfo target;
   private final int compCount;

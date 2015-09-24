@@ -14,6 +14,7 @@
 package com.google.cloud.genomics.dataflow.model;
 
 import com.google.genomics.v1.Variant;
+
 import java.io.Serializable;
 
 /**

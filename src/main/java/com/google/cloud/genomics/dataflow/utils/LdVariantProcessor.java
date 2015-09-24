@@ -23,6 +23,7 @@ import java.util.List;
 /**
  * Converts Variants into LdVariants. Ensures that Variants are sorted and have identical CallSets.
  */
+// TODO: check that input variants are phased.
 public class LdVariantProcessor {
   class CallSetGenotype {
     private final String id;

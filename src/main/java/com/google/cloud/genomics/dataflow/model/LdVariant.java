@@ -13,9 +13,6 @@
  */
 package com.google.cloud.genomics.dataflow.model;
 
-import com.google.cloud.genomics.dataflow.model.LdValue;
-import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
-
 /**
  * A small container to store variant data needed to compute LD.
  *
@@ -45,9 +42,11 @@ public class LdVariant {
         && genotypes[firstNonMissing] == Genotype.UNKNOWN; firstNonMissing++) {
     };
 
-    for (int i = firstNonMissing + 1; i < genotypes.length; i++)
-      if (genotypes[i] != Genotype.UNKNOWN && genotypes[i] != genotypes[firstNonMissing])
+    for (int i = firstNonMissing + 1; i < genotypes.length; i++) {
+      if (genotypes[i] != Genotype.UNKNOWN && genotypes[i] != genotypes[firstNonMissing]) {
         return true;
+      }
+    }
 
     return false;
   }

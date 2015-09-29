@@ -13,6 +13,7 @@
  */
 package com.google.cloud.genomics.dataflow.model;
 
+import com.google.common.collect.ComparisonChain;
 import com.google.genomics.v1.Variant;
 
 import java.io.Serializable;
@@ -20,7 +21,7 @@ import java.io.Serializable;
 /**
  * Position and allele information for a given variant.
  */
-public class LdVariantInfo implements Serializable {
+public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   private final String id;
   private final String referenceName;
   private final long start;
@@ -82,4 +83,15 @@ public class LdVariantInfo implements Serializable {
         ? String.format(":%d:%s:%d:%s", zeroAllele, zeroAlleleBases, oneAllele, oneAlleleBases)
         : "");
   }
+
+  public int compareTo(LdVariantInfo that) {
+    return ComparisonChain.start().compare(this.referenceName, that.referenceName)
+        .compare(this.start, that.start).compare(this.end, that.end).compare(this.id, that.id)
+        .result();
+  }
+
+  public boolean equals(LdVariantInfo that) {
+    return this.compareTo(that) == 0;
+  }
+
 }

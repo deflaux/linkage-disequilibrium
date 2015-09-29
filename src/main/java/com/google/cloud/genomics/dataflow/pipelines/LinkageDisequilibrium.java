@@ -13,6 +13,7 @@
  */
 package com.google.cloud.genomics.dataflow.pipelines;
 
+import com.google.api.services.genomics.model.ReferenceBound;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.coders.Proto2Coder;
 import com.google.cloud.dataflow.sdk.coders.SerializableCoder;
@@ -23,13 +24,18 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.genomics.dataflow.functions.LinkageDisequilibriumCalculator;
+import com.google.cloud.genomics.dataflow.functions.LdCalculator;
+import com.google.cloud.genomics.dataflow.functions.LdCalculatorCreatePairRequests;
 import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
+import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsFactory;
-import com.google.cloud.genomics.utils.ShardUtils;
+import com.google.cloud.genomics.utils.GenomicsUtils;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Lists;
 import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.Variant;
 
@@ -38,10 +44,12 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 
 /**
- * Computes linkage disequilibrium r between all variants inside the references list of a dataset to
- * all others within window. Outputs name1, name2, num, r for those pairs whose r is at least
- * cutoff. For variants with greater than two alleles, the top two alleles are used for the
- * comparison and are appended to the output name.
+ * Computes linkage disequilibrium r and D' between all variants that start inside the references
+ * list if they are within window of each other.
+ * 
+ * Outputs name1, name2, num, r for those pairs whose r is at least cutoff. For variants with
+ * greater than two alleles, the top two alleles are used for the comparison and are appended to the
+ * output name.
  * 
  * TODO: Option to work on unphased data.
  * 
@@ -71,8 +79,8 @@ public class LinkageDisequilibrium {
 
   public static void main(String[] args) throws IOException, GeneralSecurityException {
     PipelineOptionsFactory.register(LinkageDisequilibriumOptions.class);
-    LinkageDisequilibriumOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-        .as(LinkageDisequilibriumOptions.class);
+    final LinkageDisequilibriumOptions options = PipelineOptionsFactory.fromArgs(args)
+        .withValidation().as(LinkageDisequilibriumOptions.class);
     LinkageDisequilibriumOptions.Methods.validateOptions(options);
 
     final GenomicsFactory.OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
@@ -82,16 +90,22 @@ public class LinkageDisequilibrium {
     DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,
         Proto2Coder.of(StreamVariantsRequest.class));
 
-    List<StreamVariantsRequest> requests = options.isAllReferences()
-        ? ShardUtils.getVariantRequests(options.getDatasetId(),
-            ShardUtils.SexChromosomeFilter.INCLUDE_XY, options.getBasesPerShard(), auth)
-        : ShardUtils.getVariantRequests(options.getDatasetId(), options.getReferences(),
-            options.getBasesPerShard());
+    List<Contig> contigs = options.isAllReferences()
+        ? FluentIterable.from(GenomicsUtils.getReferenceBounds(options.getDatasetId(), auth))
+            .transform(new Function<ReferenceBound, Contig>() {
+              @Override
+              public Contig apply(ReferenceBound bound) {
+                return new Contig(bound.getReferenceName(), 0, bound.getUpperBound());
+              }
+            }).toList()
+        : Lists.newArrayList(Contig.parseContigsFromCommandLine(options.getReferences()));
 
-    p.begin().apply(Create.of(requests))
+    p.begin().apply(Create.of(contigs))
+        .apply(ParDo.named("CreatePairs")
+            .of(new LdCalculatorCreatePairRequests(options.getDatasetId(), options.getWindow(),
+                options.getBasesPerShard())))
         .apply(ParDo.named("ComputeLD")
-            .of(new LinkageDisequilibriumCalculator(auth, options.getWindow(),
-                options.getLdCutoff())))
+            .of(new LdCalculator(auth, options.getWindow(), options.getLdCutoff())))
         .apply(ParDo.named("ConvertToString").of(new DoFn<LdValue, String>() {
           @Override
           public void processElement(ProcessContext c) {

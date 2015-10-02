@@ -196,7 +196,7 @@ public class LinkageDisequilibrium {
         })).apply(ParDo.named("FilterAndReverseLd").of(new DoFn<LdValue, LdValue>() {
           @Override
           public void processElement(ProcessContext c) {
-            if (c.element().getR() >= ldCutoff || c.element().getR() <= ldCutoff) {
+            if (c.element().getR() >= ldCutoff || c.element().getR() <= -ldCutoff) {
               c.output(c.element());
 
               if (!c.element().getQuery().equals(c.element().getTarget())) {

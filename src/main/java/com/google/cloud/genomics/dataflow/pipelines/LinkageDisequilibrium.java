@@ -24,23 +24,35 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.genomics.dataflow.functions.LdCalculator;
-import com.google.cloud.genomics.dataflow.functions.LdCalculatorCreatePairRequests;
+import com.google.cloud.dataflow.sdk.transforms.join.CoGroupByKey;
+import com.google.cloud.dataflow.sdk.transforms.join.KeyedPCollectionTuple;
+import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.genomics.dataflow.functions.LdShardToVariantPairs;
 import com.google.cloud.genomics.dataflow.model.LdValue;
+import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
+import com.google.cloud.genomics.dataflow.utils.LdVariantStreamIterator;
 import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.GenomicsUtils;
+import com.google.cloud.genomics.utils.ShardBoundary;
+import com.google.cloud.genomics.utils.grpc.VariantStreamIterator;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.genomics.v1.StreamVariantsRequest;
+import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -100,13 +112,99 @@ public class LinkageDisequilibrium {
             }).toList()
         : Lists.newArrayList(Contig.parseContigsFromCommandLine(options.getReferences()));
 
-    p.begin().apply(Create.of(contigs))
-        .apply(ParDo.named("CreatePairs")
-            .of(new LdCalculatorCreatePairRequests(options.getDatasetId(), options.getWindow(),
-                options.getBasesPerShard())))
-        .apply(ParDo.named("ComputeLD")
-            .of(new LdCalculator(auth, options.getWindow(), options.getLdCutoff())))
-        .apply(ParDo.named("ConvertToString").of(new DoFn<LdValue, String>() {
+    final int shardsPerWindow =
+        (int) ((options.getWindow() + options.getBasesPerShard() - 1) / options.getBasesPerShard());
+
+    // Do sharding here manually so we can maintain the original contig and index within contig
+    // which we will need later
+    List<KV<KV<KV<String, KV<Long, Long>>, Integer>, StreamVariantsRequest>> shards =
+        Lists.newArrayList();
+    for (Contig c : contigs) {
+      int i = 0;
+      for (long start = c.start; start < c.end; i++, start += options.getBasesPerShard()) {
+        StreamVariantsRequest req = StreamVariantsRequest.newBuilder()
+            .setVariantSetId(options.getDatasetId()).setReferenceName(c.referenceName)
+            .setStart(start).setEnd(Math.min(c.end, start + options.getBasesPerShard())).build();
+        shards.add(KV.of(KV.of(KV.of(c.referenceName, KV.of(c.start, c.end)), i), req));
+      }
+    }
+    Collections.shuffle(shards);
+
+    // TODO: do something to make the variant processors the same...
+    // Iterator<StreamVariantsResponse> vsi = new VariantStreamIterator(shards.get(0).getValue(),
+    // auth, ShardBoundary.Requirement.OVERLAPS, null);
+    // LdVariantProcessor vp = new LdVariantProcessor(vsi.next().getVariantsList().get(0));
+
+    // KV<String,KV<Long,Long>> is a Contig... but using Contig upset DataFlow when performing the
+    // CoGroupByKey because apparently java Serialization is not deterministic :-(
+    PCollection<KV<KV<KV<String, KV<Long, Long>>, Integer>, List<LdVariant>>> shardVariants =
+        p.apply(Create.of(shards)).apply(ParDo.named("GetVariants").of(
+            new DoFn<KV<KV<KV<String, KV<Long, Long>>, Integer>, StreamVariantsRequest>, KV<KV<KV<String, KV<Long, Long>>, Integer>, List<LdVariant>>>() {
+              @Override
+              public void processElement(ProcessContext c)
+                  throws java.io.IOException, java.security.GeneralSecurityException {
+                LdVariantStreamIterator varIter = new LdVariantStreamIterator(
+                    c.element().getValue(), auth, ShardBoundary.Requirement.OVERLAPS);
+                List<LdVariant> vars = ImmutableList.copyOf(varIter);
+                c.output(KV.of(c.element().getKey(), vars));
+              }
+            }));
+
+    PCollection<KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, List<LdVariant>>> queryLists =
+        shardVariants.apply(ParDo.named("AssignQueryVariants").of(
+            new DoFn<KV<KV<KV<String, KV<Long, Long>>, Integer>, List<LdVariant>>, KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, List<LdVariant>>>() {
+              @Override
+              public void processElement(ProcessContext c)
+                  throws java.io.IOException, java.security.GeneralSecurityException {
+                int shardNumber = c.element().getKey().getValue();
+                for (int i = shardNumber; i <= (shardNumber + shardsPerWindow); i++) {
+                  c.output(KV.of(KV.of(c.element().getKey().getKey(), KV.of(shardNumber, i)),
+                      c.element().getValue()));
+                }
+              }
+            }));
+
+    PCollection<KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, List<LdVariant>>> targetLists =
+        shardVariants.apply(ParDo.named("AssignTargetVaraints").of(
+            new DoFn<KV<KV<KV<String, KV<Long, Long>>, Integer>, List<LdVariant>>, KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, List<LdVariant>>>() {
+              @Override
+              public void processElement(ProcessContext c)
+                  throws java.io.IOException, java.security.GeneralSecurityException {
+                int shardNumber = c.element().getKey().getValue();
+                for (int i = Math.max(0, shardNumber - shardsPerWindow); i <= shardNumber; i++) {
+                  c.output(KV.of(KV.of(c.element().getKey().getKey(), KV.of(i, shardNumber)),
+                      c.element().getValue()));
+                }
+              }
+            }));
+
+    final TupleTag<List<LdVariant>> queryListTupleTag = new TupleTag<>();
+    final TupleTag<List<LdVariant>> targetListTupleTag = new TupleTag<>();
+
+    final double ldCutoff = options.getLdCutoff();
+
+    KeyedPCollectionTuple.of(queryListTupleTag, queryLists).and(targetListTupleTag, targetLists)
+        .apply(CoGroupByKey.<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>>create())
+        .apply(ParDo.named("LdShardToVariantPairs")
+            .of(new LdShardToVariantPairs(options.getWindow(), shardsPerWindow, queryListTupleTag,
+                targetListTupleTag)))
+        .apply(ParDo.named("ComputeLd").of(new DoFn<KV<LdVariant, LdVariant>, LdValue>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            c.output(c.element().getKey().computeLd(c.element().getValue()));
+          }
+        })).apply(ParDo.named("FilterAndReverseLd").of(new DoFn<LdValue, LdValue>() {
+          @Override
+          public void processElement(ProcessContext c) {
+            if (c.element().getR() >= ldCutoff || c.element().getR() <= ldCutoff) {
+              c.output(c.element());
+
+              if (!c.element().getQuery().equals(c.element().getTarget())) {
+                c.output(c.element().reverse());
+              }
+            }
+          }
+        })).apply(ParDo.named("ConvertToString").of(new DoFn<LdValue, String>() {
           @Override
           public void processElement(ProcessContext c) {
             c.output(c.element().toString());

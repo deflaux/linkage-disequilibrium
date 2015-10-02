@@ -15,9 +15,8 @@ package com.google.cloud.genomics.dataflow.model;
 
 /**
  * A small container to store variant data needed to compute LD.
- *
  */
-public class LdVariant {
+public class LdVariant implements java.io.Serializable {
   public enum Genotype {
     UNKNOWN, ZERO, ONE
   }
@@ -35,6 +34,9 @@ public class LdVariant {
     return info;
   }
 
+  /**
+   * Returns true if there are at least two chromosomes with non-missing data whose alleles differ.
+   */
   public boolean hasVariation() {
     int firstNonMissing;
 
@@ -51,6 +53,9 @@ public class LdVariant {
     return false;
   }
 
+  /**
+   * Computes LD between this and target variant.
+   */
   public LdValue computeLd(LdVariant target) {
     assert this.genotypes.length == target.genotypes.length;
 

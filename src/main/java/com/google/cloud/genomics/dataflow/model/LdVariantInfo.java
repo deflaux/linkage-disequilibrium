@@ -79,9 +79,8 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   }
 
   public String toString() {
-    return String.format("%s:%s:%d:%d", id, referenceName, start, end) + ((alternateBasesCount > 1)
-        ? String.format(":%d:%s:%d:%s", zeroAllele, zeroAlleleBases, oneAllele, oneAlleleBases)
-        : "");
+    return String.format("%s:%s:%d:%d:%d:%s:%s", id, referenceName, start, end, alternateBasesCount,
+        zeroAlleleBases, oneAlleleBases);
   }
 
   public int compareTo(LdVariantInfo that) {

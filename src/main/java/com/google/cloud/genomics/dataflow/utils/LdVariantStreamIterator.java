@@ -28,12 +28,9 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 
 /**
- * Wrapper for VariantStreamIterator that:
+ * Wrapper for VariantStreamIterator.
  *
- * 1. Checks that variants come in order. Note: The API does not explicitly say the variants come in
- * order, but the code does ensures that all variants will be from the same reference and come in
- * start order. Because variants should never share a start (they should be merged), then sorting by
- * start is sufficient to ensure that they should always be in order.
+ * 1. Checks that variants come from the same reference and in non-decreasing order of start.
  *
  * 2. Rather than return a list of variants per next() call, returns one at a time.
  *
@@ -45,11 +42,13 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   private LdVariantProcessor ldVaraintProcessor = null;
   private LdVariant nextLdVariant = null;
   private long lastStart = -1;
+  private final String referenceName;
 
   public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
       ShardBoundary.Requirement shardBoundaryRequirement)
           throws java.io.IOException, java.security.GeneralSecurityException {
     streamIter = new VariantStreamIterator(request, auth, shardBoundaryRequirement, null);
+    referenceName = request.getReferenceName();
   }
 
   public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
@@ -75,7 +74,8 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
 
       nextLdVariant = ldVaraintProcessor.convertVariant(varsToProcess.remove());
 
-      if (lastStart > nextLdVariant.getInfo().getStart()) {
+      if (!referenceName.equals(nextLdVariant.getInfo().getReferenceName())
+          || lastStart > nextLdVariant.getInfo().getStart()) {
         throw new IllegalArgumentException("Variants are not streamed in increasing order.");
       }
 

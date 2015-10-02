@@ -13,6 +13,7 @@
  */
 package com.google.cloud.genomics.dataflow.utils;
 
+import com.google.api.services.genomics.model.Call;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
 import com.google.genomics.v1.Variant;
@@ -21,7 +22,10 @@ import com.google.genomics.v1.VariantCall;
 import java.util.List;
 
 /**
- * Converts Variants into LdVariants. Ensures that Variants are sorted and have identical CallSets.
+ * Converts Variants into LdVariants. Ensures that Variants have identical call sets. For
+ * multiallelic variants, chooses the two alleles with the highest observed frequency. If one of
+ * those alleles is the reference, it stays as zeroAllele, otherwise the highest frequency alelle is
+ * assigned zeroAllele and the other to oneAllele.
  */
 // TODO: check that input variants are phased.
 public class LdVariantProcessor {

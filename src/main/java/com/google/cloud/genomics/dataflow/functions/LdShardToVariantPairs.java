@@ -14,9 +14,7 @@
 package com.google.cloud.genomics.dataflow.functions;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
-import com.google.cloud.dataflow.sdk.transforms.join.CoGbkResult;
 import com.google.cloud.dataflow.sdk.values.KV;
-import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 
 import java.util.Iterator;
@@ -27,36 +25,41 @@ import java.util.ListIterator;
 /**
  */
 public class LdShardToVariantPairs extends
-    DoFn<KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, CoGbkResult>, KV<LdVariant, LdVariant>> {
+    DoFn<KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, Iterable<KV<Boolean, List<LdVariant>>>>, KV<LdVariant, LdVariant>> {
   private final long window;
   private final int shardsPerWindow;
-  private final TupleTag<List<LdVariant>> queryListTupleTag;
-  private final TupleTag<List<LdVariant>> targetListTupleTag;
 
-  public LdShardToVariantPairs(long window, int shardsPerWindow,
-      TupleTag<List<LdVariant>> queryListTupleTag, TupleTag<List<LdVariant>> targetListTupleTag) {
+  public LdShardToVariantPairs(long window, int shardsPerWindow) {
     this.window = window;
     this.shardsPerWindow = shardsPerWindow;
-    this.queryListTupleTag = queryListTupleTag;
-    this.targetListTupleTag = targetListTupleTag;
   }
 
   @Override
   public void processElement(ProcessContext c) {
-    KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, CoGbkResult> e = c.element();
+    List<LdVariant> queryList = null;
+    List<LdVariant> targetList = null;
 
-    if (!e.getValue().getAll(queryListTupleTag).iterator().hasNext()
-        || !e.getValue().getAll(targetListTupleTag).iterator().hasNext()) {
-      return;
+    long contigStart = c.element().getKey().getKey().getValue().getKey();
+    int queryShardIndex = c.element().getKey().getValue().getKey();
+    int targetShardIndex = c.element().getKey().getValue().getKey();
+
+    for (KV<Boolean, List<LdVariant>> vl : c.element().getValue()) {
+      if (vl.getKey()) {
+        if (queryList != null) {
+          throw new IllegalArgumentException("There should be exactly two lists.");
+        }
+        queryList = vl.getValue();
+      } else {
+        if (targetList != null) {
+          throw new IllegalArgumentException("There should be exactly two lists.");
+        }
+        targetList = vl.getValue();
+      }
     }
 
-    List<LdVariant> queryList = c.element().getValue().getAll(queryListTupleTag).iterator().next();
-    List<LdVariant> targetList =
-        c.element().getValue().getAll(targetListTupleTag).iterator().next();
-
-    long contigStart = e.getKey().getKey().getValue().getKey();
-    int queryShardIndex = e.getKey().getValue().getKey();
-    int targetShardIndex = e.getKey().getValue().getValue();
+    if (queryList == null || targetList == null) {
+      throw new IllegalArgumentException("There should be exactly two lists.");
+    }
 
     // -1 means no filter
     long queryStartFilter = -1;
@@ -70,41 +73,39 @@ public class LdShardToVariantPairs extends
 
     // Our working set of variants from the target shard that could be within window of variants
     // read in from the query shard.
-    LinkedList<LdVariant> storedVars = new LinkedList<>();
+    LinkedList<LdVariant> storedTarget = new LinkedList<>();
 
     for (LdVariant queryVar : queryList) {
       if (queryVar.getInfo().getStart() < queryStartFilter) {
         continue;
       }
 
-      // Fill in storedVars until we are past window from queryVar.
-      while (targetIter.hasNext() && (storedVars.isEmpty()
-          || (queryVar.getInfo().getEnd() + window) > storedVars.getLast().getInfo().getStart())) {
+      // Fill in storedTarget until we are past window from queryVar.
+      while (targetIter.hasNext()
+          && (storedTarget.isEmpty() || (queryVar.getInfo().getEnd() + window) > storedTarget
+              .getLast().getInfo().getStart())) {
         LdVariant targetVar = targetIter.next();
-
         if (targetVar.getInfo().getStart() >= targetStartFilter) {
-          storedVars.add(targetIter.next());
+          storedTarget.add(targetVar);
         }
       }
 
-      // Remove variants in storedVars that we are more than window away from and output overlaps.
-      ListIterator<LdVariant> varsIter = storedVars.listIterator(0);
-      while (varsIter.hasNext()) {
-        LdVariant targetVar = varsIter.next();
+      ListIterator<LdVariant> storedTargetIter = storedTarget.listIterator(0);
+      while (storedTargetIter.hasNext()) {
+        LdVariant targetVar = storedTargetIter.next();
 
-        // The StreamVariantsResponse Iterator does not have an obvious total ordering (although
-        // it does sort by referenceName and start). Thus, there are variants that we may have
-        // passed (according to LdVariantInfo.compareTo), but have the same start and we should
-        // not remove because the next targetVar may be "before" it.
-        //
-        // If self-comparisons are desired (e.g. to have a list of the variants with variation)
-        // then the compareTo check should be != 1 and the c.output on cr.reverse should only
-        // be done if they are not the same variant.
-        if (queryVar.getInfo().getStart() > targetVar.getInfo().getStart()) {
-          varsIter.remove();
-        } else if (queryVar.getInfo().compareTo(targetVar.getInfo()) == -1
-            && (queryVar.getInfo().getEnd() + window) > targetVar.getInfo().getStart()) {
-
+        if (queryVar.getInfo().compareTo(targetVar.getInfo()) != -1) {
+          // Only do comparisons where query is before target. If query is past target then
+          // we are done with target. Note: targetVar > queryVar implies targetVar start >= queryVar
+          // start.
+          storedTargetIter.remove();
+        } else if (targetVar.getInfo().getStart() >= (queryVar.getInfo().getEnd() + window)) {
+          // If the next query starts more than window from when target starts, we are done
+          // with the rest of storedTarget for this query.
+          break;
+        } else {
+          // If target starts >= query starts and target starts < window from query end, then they
+          // must overlap.
           c.output(KV.of(queryVar, targetVar));
         }
       }

@@ -22,15 +22,17 @@ import com.google.genomics.v1.StreamVariantsRequest;
 import com.google.genomics.v1.StreamVariantsResponse;
 import com.google.genomics.v1.Variant;
 
+import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.NoSuchElementException;
-import java.util.Queue;
+import java.util.PriorityQueue;
 
 /**
  * Wrapper for VariantStreamIterator.
  *
- * 1. Checks that variants come from the same reference and in non-decreasing order of start.
+ * 1. Ensures that variants come from the same reference in sorted order (as indicated by
+ * LdVariantInfo.compareTo). Note: input variants from VariantStreamIterator are sorted by start
+ * only.
  *
  * 2. Rather than return a list of variants per next() call, returns one at a time.
  *
@@ -38,7 +40,8 @@ import java.util.Queue;
  */
 public class LdVariantStreamIterator implements Iterator<LdVariant> {
   private Iterator<StreamVariantsResponse> streamIter;
-  private Queue<Variant> varsToProcess = new LinkedList<>();
+  private PriorityQueue<LdVariant> storedLdVars =
+      new PriorityQueue<>(11, new LdVariantComparator());
   private LdVariantProcessor ldVaraintProcessor = null;
   private LdVariant nextLdVariant = null;
   private long lastStart = -1;
@@ -58,31 +61,37 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
     this.ldVaraintProcessor = ldVariantIterator.ldVaraintProcessor;
   }
 
+  private class LdVariantComparator implements Comparator<LdVariant> {
+    @Override
+    public int compare(LdVariant x, LdVariant y) {
+      return x.getInfo().compareTo(y.getInfo());
+    }
+  }
+
   public boolean hasNext() {
-    while (nextLdVariant == null) {
-      while (varsToProcess.isEmpty()) {
-        if (!streamIter.hasNext()) {
-          return false;
+    while (storedLdVars.isEmpty()
+        || (storedLdVars.peek().getInfo().getStart() == lastStart && streamIter.hasNext())) {
+      if (!streamIter.hasNext()) {
+        return false;
+      }
+
+      for (Variant v : streamIter.next().getVariantsList()) {
+        if (ldVaraintProcessor == null) {
+          ldVaraintProcessor = new LdVariantProcessor(v);
         }
 
-        varsToProcess.addAll(streamIter.next().getVariantsList());
-      }
+        LdVariant lv = ldVaraintProcessor.convertVariant(v);
 
-      if (ldVaraintProcessor == null) {
-        ldVaraintProcessor = new LdVariantProcessor(varsToProcess.peek());
-      }
+        if (!referenceName.equals(lv.getInfo().getReferenceName())
+            || lastStart > lv.getInfo().getStart()) {
+          throw new IllegalArgumentException("Variants are not streamed in increasing order.");
+        }
 
-      nextLdVariant = ldVaraintProcessor.convertVariant(varsToProcess.remove());
+        lastStart = lv.getInfo().getStart();
 
-      if (!referenceName.equals(nextLdVariant.getInfo().getReferenceName())
-          || lastStart > nextLdVariant.getInfo().getStart()) {
-        throw new IllegalArgumentException("Variants are not streamed in increasing order.");
-      }
-
-      lastStart = nextLdVariant.getInfo().getStart();
-
-      if (!nextLdVariant.hasVariation()) {
-        nextLdVariant = null;
+        if (lv.hasVariation()) {
+          storedLdVars.add(lv);
+        }
       }
     }
 
@@ -94,10 +103,7 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
       throw new NoSuchElementException();
     }
 
-    LdVariant v = nextLdVariant;
-    nextLdVariant = null;
-
-    return v;
+    return storedLdVars.poll();
   }
 
   public void remove() {

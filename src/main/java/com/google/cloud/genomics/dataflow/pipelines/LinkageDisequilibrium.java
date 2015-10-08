@@ -25,23 +25,20 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.genomics.dataflow.functions.LdCreateVariantListsAndAssign;
 import com.google.cloud.genomics.dataflow.functions.LdShardToVariantPairs;
 import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
-import com.google.cloud.genomics.dataflow.utils.LdVariantStreamIterator;
 import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.GenomicsUtils;
-import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.genomics.v1.StreamVariantsRequest;
-import com.google.genomics.v1.StreamVariantsResponse;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -109,18 +106,20 @@ public class LinkageDisequilibrium {
     final int shardsPerWindow = (int) ((options.getWindow() + basesPerShard - 1) / basesPerShard);
 
     // Do sharding here manually so we can maintain the original contig and index within contig
-    // which we will need later
-    List<KV<KV<KV<String, KV<Long, Long>>, Integer>, StreamVariantsRequest>> shards =
-        Lists.newArrayList();
-    for (Contig c : contigs) {
-      int i = 0;
-      for (long start = c.start; start < c.end; i++, start += basesPerShard) {
-        StreamVariantsRequest req = StreamVariantsRequest.newBuilder()
-            .setVariantSetId(options.getDatasetId()).setReferenceName(c.referenceName)
-            .setStart(start).setEnd(Math.min(c.end, start + basesPerShard)).build();
-        shards.add(KV.of(KV.of(KV.of(c.referenceName, KV.of(c.start, c.end)), i), req));
+    // which we will need later.
+    List<KV<KV<Integer, Contig>, KV<Integer, StreamVariantsRequest>>> shards = Lists.newArrayList();
+    int contigIndex = 0;
+    for (Contig contig : contigs) {
+      int shardIndex = 0;
+      for (long start = contig.start; start < contig.end; shardIndex++, start += basesPerShard) {
+        StreamVariantsRequest shard = StreamVariantsRequest.newBuilder()
+            .setVariantSetId(options.getDatasetId()).setReferenceName(contig.referenceName)
+            .setStart(start).setEnd(Math.min(contig.end, start + basesPerShard)).build();
+        shards.add(KV.of(KV.of(contigIndex, contig), KV.of(shardIndex, shard)));
       }
+      contigIndex++;
     }
+    // shuffle to spread out requests
     Collections.shuffle(shards);
 
     // TODO: do something to make the variant processors the same...
@@ -128,40 +127,10 @@ public class LinkageDisequilibrium {
     // auth, ShardBoundary.Requirement.OVERLAPS, null);
     // LdVariantProcessor vp = new LdVariantProcessor(vsi.next().getVariantsList().get(0));
 
-    // KV<String,KV<Long,Long>> is a Contig... but using Contig upset DataFlow when performing the
-    // CoGroupByKey because apparently java Serialization is not deterministic :-(
-    p.apply(Create.of(shards)).apply(ParDo.named("CreateVariantListsAndAssign").of(
-        new DoFn<KV<KV<KV<String, KV<Long, Long>>, Integer>, StreamVariantsRequest>, KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, KV<Boolean, List<LdVariant>>>>() {
-          @Override
-          public void processElement(ProcessContext c)
-              throws java.io.IOException, java.security.GeneralSecurityException {
-            KV<String, KV<Long, Long>> contig = c.element().getKey().getKey();
-
-            int contigShardCount = (int) ((contig.getValue().getValue() - contig.getValue().getKey()
-                + basesPerShard - 1) / basesPerShard);
-            int shardIndex = c.element().getKey().getValue();
-
-            LdVariantStreamIterator varIter = new LdVariantStreamIterator(c.element().getValue(),
-                auth, ShardBoundary.Requirement.OVERLAPS);
-
-            List<LdVariant> vars = ImmutableList.copyOf(varIter);
-
-            for (int i = 0; i <= shardsPerWindow; i++) {
-              if ((shardIndex + i) < contigShardCount) {
-                // true indicates this is the query list for this pair
-                c.output(
-                    KV.of(KV.of(contig, KV.of(shardIndex, shardIndex + i)), KV.of(true, vars)));
-              }
-
-              if ((shardIndex - i) >= 0) {
-                c.output(
-                    KV.of(KV.of(contig, KV.of(shardIndex - i, shardIndex)), KV.of(false, vars)));
-              }
-            }
-          }
-        }))
-        .apply(GroupByKey
-            .<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, KV<Boolean, List<LdVariant>>>create())
+    p.apply(Create.of(shards))
+        .apply(ParDo.named("LdCreateVariantListsAndAssign")
+            .of(new LdCreateVariantListsAndAssign(auth, basesPerShard, shardsPerWindow)))
+        .apply(GroupByKey.<String, KV<Boolean, List<LdVariant>>>create())
         .apply(ParDo.named("LdShardToVariantPairs")
             .of(new LdShardToVariantPairs(options.getWindow(), shardsPerWindow)))
         .apply(ParDo.named("ComputeLd").of(new DoFn<KV<LdVariant, LdVariant>, LdValue>() {

@@ -24,8 +24,8 @@ import java.util.ListIterator;
 
 /**
  */
-public class LdShardToVariantPairs extends
-    DoFn<KV<KV<KV<String, KV<Long, Long>>, KV<Integer, Integer>>, Iterable<KV<Boolean, List<LdVariant>>>>, KV<LdVariant, LdVariant>> {
+public class LdShardToVariantPairs
+    extends DoFn<KV<String, Iterable<KV<Boolean, List<LdVariant>>>>, KV<LdVariant, LdVariant>> {
   private final long window;
   private final int shardsPerWindow;
 
@@ -38,35 +38,18 @@ public class LdShardToVariantPairs extends
   public void processElement(ProcessContext c) {
     List<LdVariant> queryList = null;
     List<LdVariant> targetList = null;
-
-    long contigStart = c.element().getKey().getKey().getValue().getKey();
-    int queryShardIndex = c.element().getKey().getValue().getKey();
-    int targetShardIndex = c.element().getKey().getValue().getKey();
-
+    int inputListCount = 0;
     for (KV<Boolean, List<LdVariant>> vl : c.element().getValue()) {
       if (vl.getKey()) {
-        if (queryList != null) {
-          throw new IllegalArgumentException("There should be exactly two lists.");
-        }
         queryList = vl.getValue();
       } else {
-        if (targetList != null) {
-          throw new IllegalArgumentException("There should be exactly two lists.");
-        }
         targetList = vl.getValue();
       }
+      inputListCount++;
     }
 
-    if (queryList == null || targetList == null) {
+    if (inputListCount != 2 || queryList == null || targetList == null) {
       throw new IllegalArgumentException("There should be exactly two lists.");
-    }
-
-    // -1 means no filter
-    long queryStartFilter = -1;
-    long targetStartFilter = contigStart + targetShardIndex * window;
-
-    if (queryShardIndex != 0 && (targetShardIndex - queryShardIndex) < shardsPerWindow) {
-      queryStartFilter = contigStart + queryShardIndex * window;
     }
 
     Iterator<LdVariant> targetIter = targetList.iterator();
@@ -76,18 +59,11 @@ public class LdShardToVariantPairs extends
     LinkedList<LdVariant> storedTarget = new LinkedList<>();
 
     for (LdVariant queryVar : queryList) {
-      if (queryVar.getInfo().getStart() < queryStartFilter) {
-        continue;
-      }
-
       // Fill in storedTarget until we are past window from queryVar.
       while (targetIter.hasNext()
           && (storedTarget.isEmpty() || (queryVar.getInfo().getEnd() + window) > storedTarget
               .getLast().getInfo().getStart())) {
-        LdVariant targetVar = targetIter.next();
-        if (targetVar.getInfo().getStart() >= targetStartFilter) {
-          storedTarget.add(targetVar);
-        }
+        storedTarget.add(targetIter.next());
       }
 
       ListIterator<LdVariant> storedTargetIter = storedTarget.listIterator(0);

@@ -14,7 +14,6 @@
 package com.google.cloud.genomics.dataflow.utils;
 
 import com.google.cloud.genomics.dataflow.model.LdVariant;
-import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.cloud.genomics.utils.grpc.VariantStreamIterator;

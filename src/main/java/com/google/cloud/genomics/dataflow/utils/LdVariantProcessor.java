@@ -13,7 +13,6 @@
  */
 package com.google.cloud.genomics.dataflow.utils;
 
-import com.google.api.services.genomics.model.Call;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
 import com.google.genomics.v1.Variant;

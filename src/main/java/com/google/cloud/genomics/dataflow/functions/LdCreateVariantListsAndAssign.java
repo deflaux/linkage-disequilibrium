@@ -42,6 +42,24 @@ public class LdCreateVariantListsAndAssign extends
     this.shardsPerWindow = shardsPerWindow;
   }
 
+  private List<LdVariant> filterStartLdVariants(List<LdVariant> input, long startFilter) {
+    ListIterator<LdVariant> iter = input.listIterator();
+    boolean noFiltering = true;
+    while (iter.hasNext()) {
+      if (iter.next().getInfo().getStart() >= startFilter) {
+        iter.previous();
+        break;
+      }
+      noFiltering = false;
+    }
+
+    if (noFiltering) {
+      return input;
+    }
+
+    return ImmutableList.copyOf(iter);
+  }
+
   @Override
   public void processElement(ProcessContext c)
       throws java.io.IOException, java.security.GeneralSecurityException {
@@ -68,16 +86,12 @@ public class LdCreateVariantListsAndAssign extends
       break;
     }
 
+    // Remove anything from before the start of the contig.
+    vars = filterStartLdVariants(vars, contig.start);
+
     // Also produce "STRICT" boundary semantics -- exclude variants that overlap the base
     // prior to the start of a shard.
-    ListIterator<LdVariant> varsIter = vars.listIterator();
-    while (varsIter.hasNext()) {
-      if (varsIter.next().getInfo().getStart() >= shard.getStart()) {
-        varsIter.previous();
-        break;
-      }
-    }
-    List<LdVariant> varsStrict = ImmutableList.copyOf(varsIter);
+    List<LdVariant> varsStrict = filterStartLdVariants(vars, shard.getStart());
 
     for (int i = 0; i <= shardsPerWindow; i++) {
       /*
@@ -85,17 +99,11 @@ public class LdCreateVariantListsAndAssign extends
        * that overlap the start of the query because they may be within window of variants in
        * target. We don't want to include it in other pairs because then we would do those
        * comparisons more than once (as part of other shards).
-       * 
-       * We exclude this for the first query shard because we do not want to use variants that start
-       * before that in our comparisons (this is because it would lead to double counting if the
-       * genome was split up and also because it seems to be considerably more complex in this
-       * framework). Note: this doesn't effect "whole genome" style analysis because there is
-       * nothing that starts prior to base 0 for each reference.
        */
       if ((shardIndex + i) < contigShardCount) {
         // true indicates this is the query list for this pair
         c.output(KV.of(String.format("%d:%d:%d", contigIndex, shardIndex, shardIndex + i),
-            KV.of(true, (shardIndex == 0 || i != shardsPerWindow) ? varsStrict : vars)));
+            KV.of(true, (i == shardsPerWindow) ? vars : varsStrict)));
       }
 
       if ((shardIndex - i) >= 0) {

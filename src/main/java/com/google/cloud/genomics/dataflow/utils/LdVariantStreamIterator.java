@@ -41,23 +41,17 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   private Iterator<StreamVariantsResponse> streamIter;
   private PriorityQueue<LdVariant> storedLdVars =
       new PriorityQueue<>(11, new LdVariantComparator());
-  private LdVariantProcessor ldVaraintProcessor = null;
+  private LdVariantProcessor ldVariantProcessor = null;
   private LdVariant nextLdVariant = null;
   private long lastStart = -1;
   private final String referenceName;
 
   public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
-      ShardBoundary.Requirement shardBoundaryRequirement)
+      LdVariantProcessor ldVariantProcessor)
           throws java.io.IOException, java.security.GeneralSecurityException {
-    streamIter = new VariantStreamIterator(request, auth, shardBoundaryRequirement, null);
+    streamIter = new VariantStreamIterator(request, auth, ShardBoundary.Requirement.OVERLAPS, null);
     referenceName = request.getReferenceName();
-  }
-
-  public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
-      ShardBoundary.Requirement shardBoundaryRequirement, LdVariantStreamIterator ldVariantIterator)
-          throws java.io.IOException, java.security.GeneralSecurityException {
-    this(request, auth, shardBoundaryRequirement);
-    this.ldVaraintProcessor = ldVariantIterator.ldVaraintProcessor;
+    this.ldVariantProcessor = ldVariantProcessor;
   }
 
   private class LdVariantComparator implements Comparator<LdVariant> {
@@ -75,11 +69,7 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
       }
 
       for (Variant v : streamIter.next().getVariantsList()) {
-        if (ldVaraintProcessor == null) {
-          ldVaraintProcessor = new LdVariantProcessor(v);
-        }
-
-        LdVariant lv = ldVaraintProcessor.convertVariant(v);
+        LdVariant lv = ldVariantProcessor.convertVariant(v);
 
         if (!referenceName.equals(lv.getInfo().getReferenceName())
             || lastStart > lv.getInfo().getStart()) {

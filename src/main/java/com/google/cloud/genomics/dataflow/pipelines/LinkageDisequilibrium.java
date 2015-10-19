@@ -32,6 +32,7 @@ import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
 import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
+import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.GenomicsUtils;
@@ -43,6 +44,7 @@ import com.google.genomics.v1.StreamVariantsRequest;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -77,6 +79,44 @@ public class LinkageDisequilibrium {
     Double getLdCutoff();
 
     void setLdCutoff(Double ldCutoff);
+
+    @Description("Comma separated tuples of reference:start:end or reference for entire reference.")
+    @Default.String("20")
+    String getReferences();
+
+    void setReferences(String references);
+  }
+
+  // null references for all
+  private static List<Contig> convertStringToContigs(List<ReferenceBound> refBounds,
+      String references) {
+    if (references == null) {
+      return FluentIterable.from(refBounds).transform(new Function<ReferenceBound, Contig>() {
+        @Override
+        public Contig apply(ReferenceBound bound) {
+          return new Contig(bound.getReferenceName(), 0, bound.getUpperBound());
+        }
+      }).toList();
+    }
+
+    HashMap<String, Long> refToBound = new HashMap<>();
+
+    for (ReferenceBound rb : refBounds) {
+      refToBound.put(rb.getReferenceName(), rb.getUpperBound());
+    }
+
+    List<Contig> contigs = Lists.newArrayList();
+    for (String r : references.split(" ")) {
+      if (refToBound.containsKey(r)) {
+        contigs.add(new Contig(r, 0, refToBound.get(r)));
+      } else {
+        String[] contigInfo = r.split(":");
+        contigs.add(
+            new Contig(contigInfo[0], Long.valueOf(contigInfo[1]), Long.valueOf(contigInfo[2])));
+      }
+    }
+
+    return contigs;
   }
 
   public static void main(String[] args) throws IOException, GeneralSecurityException {
@@ -87,19 +127,9 @@ public class LinkageDisequilibrium {
 
     final GenomicsFactory.OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
-    Pipeline p = Pipeline.create(options);
-    DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,
-        Proto2Coder.of(StreamVariantsRequest.class));
-
-    List<Contig> contigs = options.isAllReferences()
-        ? FluentIterable.from(GenomicsUtils.getReferenceBounds(options.getDatasetId(), auth))
-            .transform(new Function<ReferenceBound, Contig>() {
-              @Override
-              public Contig apply(ReferenceBound bound) {
-                return new Contig(bound.getReferenceName(), 0, bound.getUpperBound());
-              }
-            }).toList()
-        : Lists.newArrayList(Contig.parseContigsFromCommandLine(options.getReferences()));
+    List<Contig> contigs =
+        convertStringToContigs(GenomicsUtils.getReferenceBounds(options.getDatasetId(), auth),
+            options.isAllReferences() ? null : options.getReferences());
 
     final double ldCutoff = options.getLdCutoff();
     final long basesPerShard = options.getBasesPerShard();
@@ -122,14 +152,17 @@ public class LinkageDisequilibrium {
     // shuffle to spread out requests
     Collections.shuffle(shards);
 
-    // TODO: do something to make the variant processors the same...
-    // Iterator<StreamVariantsResponse> vsi = new VariantStreamIterator(shards.get(0).getValue(),
-    // auth, ShardBoundary.Requirement.OVERLAPS, null);
-    // LdVariantProcessor vp = new LdVariantProcessor(vsi.next().getVariantsList().get(0));
+    LdVariantProcessor ldVariantProcessor =
+        new LdVariantProcessor(GenomicsUtils.getCallSetsNames(options.getDatasetId(), auth));
+
+    Pipeline p = Pipeline.create(options);
+    DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,
+        Proto2Coder.of(StreamVariantsRequest.class));
 
     p.apply(Create.of(shards))
         .apply(ParDo.named("LdCreateVariantListsAndAssign")
-            .of(new LdCreateVariantListsAndAssign(auth, basesPerShard, shardsPerWindow)))
+            .of(new LdCreateVariantListsAndAssign(auth, basesPerShard, shardsPerWindow,
+                ldVariantProcessor)))
         .apply(GroupByKey.<String, KV<Boolean, List<LdVariant>>>create())
         .apply(ParDo.named("LdShardToVariantPairs")
             .of(new LdShardToVariantPairs(options.getWindow(), shardsPerWindow)))

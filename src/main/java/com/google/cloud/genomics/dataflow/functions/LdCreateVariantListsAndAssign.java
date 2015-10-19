@@ -16,10 +16,10 @@ package com.google.cloud.genomics.dataflow.functions;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
+import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.dataflow.utils.LdVariantStreamIterator;
 import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsFactory;
-import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.common.collect.ImmutableList;
 import com.google.genomics.v1.StreamVariantsRequest;
 
@@ -34,12 +34,14 @@ public class LdCreateVariantListsAndAssign extends
   private final GenomicsFactory.OfflineAuth auth;
   private final long basesPerShard;
   private final int shardsPerWindow;
+  private final LdVariantProcessor ldVariantProcessor;
 
   public LdCreateVariantListsAndAssign(GenomicsFactory.OfflineAuth auth, long basesPerShard,
-      int shardsPerWindow) {
+      int shardsPerWindow, LdVariantProcessor ldVariantProcessor) {
     this.auth = auth;
     this.basesPerShard = basesPerShard;
     this.shardsPerWindow = shardsPerWindow;
+    this.ldVariantProcessor = ldVariantProcessor;
   }
 
   private List<LdVariant> filterStartLdVariants(List<LdVariant> input, long startFilter) {
@@ -75,8 +77,7 @@ public class LdCreateVariantListsAndAssign extends
     List<LdVariant> vars;
     for (int attempt = 1;; attempt++) {
       try {
-        vars = ImmutableList
-            .copyOf(new LdVariantStreamIterator(shard, auth, ShardBoundary.Requirement.OVERLAPS));
+        vars = ImmutableList.copyOf(new LdVariantStreamIterator(shard, auth, ldVariantProcessor));
       } catch (io.grpc.StatusRuntimeException e) {
         if (attempt < 10) {
           continue;

@@ -18,76 +18,43 @@ import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Converts Variants into LdVariants. Ensures that Variants have identical call sets. For
  * multiallelic variants, chooses the two alleles with the highest observed frequency. If one of
  * those alleles is the reference, it stays as zeroAllele, otherwise the highest frequency alelle is
- * assigned zeroAllele and the other to oneAllele.
+ * assigned zeroAllele and the other to oneAllele. Note: does not currently check that the number of
+ * genotypes for each callset or the total number of genotypes matches.
  */
-// TODO: check that input variants are phased.
-public class LdVariantProcessor {
-  class CallSetGenotype {
-    private final String id;
-    private final int genotypeCount;
+public class LdVariantProcessor implements Serializable {
+  private final List<String> callSetsNames;
 
-    public CallSetGenotype(String id, int genotypeCount) {
-      this.id = id;
-      this.genotypeCount = genotypeCount;
-    }
-
-    public String getId() {
-      return id;
-    }
-
-    public int getGenotypeCount() {
-      return genotypeCount;
-    }
-  }
-
-  private final CallSetGenotype[] callSetGenotypes;
-  private final int totalGenotypesCount;
-
-  public LdVariantProcessor(Variant var) {
-    List<VariantCall> calls = var.getCallsList();
-    int totalGenotypesCount = 0;
-    CallSetGenotype[] callSetGenotypes = new CallSetGenotype[calls.size()];
-    for (int i = 0; i < calls.size(); i++) {
-      callSetGenotypes[i] =
-          new CallSetGenotype(calls.get(i).getCallSetId(), calls.get(i).getGenotypeCount());
-      totalGenotypesCount += callSetGenotypes[i].genotypeCount;
-    }
-
-    this.totalGenotypesCount = totalGenotypesCount;
-    this.callSetGenotypes = callSetGenotypes;
+  public LdVariantProcessor(List<String> callSetsNames) {
+    this.callSetsNames = callSetsNames;
   }
 
   // returns null if there is no variation for this variant
   public LdVariant convertVariant(Variant var) {
     List<VariantCall> calls = var.getCallsList();
 
-    if (callSetGenotypes.length != calls.size()) {
-      throw new IllegalArgumentException("Number of variant calls do not match in shard.");
+    ArrayList<Integer> genotypes = new ArrayList<>();
+
+    if (callSetsNames.size() != calls.size()) {
+      throw new IllegalArgumentException("Mismatch in number of calls.");
     }
 
-    int[] genotypes = new int[totalGenotypesCount];
-
-    for (int i = 0, j = 0; i < callSetGenotypes.length; i++) {
+    for (int i = 0; i < calls.size(); i++) {
       VariantCall vc = calls.get(i);
 
-      if (!callSetGenotypes[i].getId().equals(vc.getCallSetId())
-          || callSetGenotypes[i].getGenotypeCount() != vc.getGenotypeCount()) {
-        throw new IllegalArgumentException("Call sets do not match in shard.");
+      if (!callSetsNames.get(i).equals(vc.getCallSetName())) {
+        throw new IllegalArgumentException(
+            "CallSetName mismatch: " + callSetsNames.get(i) + " vs " + vc.getCallSetName());
       }
 
-      for (int k = 0; k < callSetGenotypes[i].getGenotypeCount(); k++, j++) {
-        genotypes[j] = vc.getGenotype(k);
-
-        if (genotypes[j] < -1 || genotypes[j] > var.getAlternateBasesCount()) {
-          throw new IllegalArgumentException("Genotype outside allowable range.");
-        }
-      }
+      genotypes.addAll(vc.getGenotypeList());
     }
 
     int zeroAllele = 0;
@@ -96,11 +63,12 @@ public class LdVariantProcessor {
       // Multiallelic variant
 
       int[] genotypeCounts = new int[var.getAlternateBasesCount() + 1];
-      for (int i = 0; i < genotypes.length; i++) {
-        if (genotypes[i] != -1) {
-          genotypeCounts[genotypes[i]]++;
+      for (Integer genotype : genotypes) {
+        if (genotype != -1) {
+          genotypeCounts[genotype]++;
         }
       }
+
       // find the two most used alleles, breaking ties with the earlier allele
       int max1Allele = genotypeCounts[0] >= genotypeCounts[1] ? 0 : 1;
       int max2Allele = 1 - max1Allele;
@@ -122,10 +90,10 @@ public class LdVariantProcessor {
       }
     }
 
-    LdVariant.Genotype[] genotypesConv = new LdVariant.Genotype[genotypes.length];
-    for (int i = 0; i < genotypes.length; i++) {
-      genotypesConv[i] = (genotypes[i] == zeroAllele) ? LdVariant.Genotype.ZERO
-          : (genotypes[i] == oneAllele) ? LdVariant.Genotype.ONE : LdVariant.Genotype.UNKNOWN;
+    LdVariant.Genotype[] genotypesConv = new LdVariant.Genotype[genotypes.size()];
+    for (int i = 0; i < genotypesConv.length; i++) {
+      genotypesConv[i] = (genotypes.get(i) == zeroAllele) ? LdVariant.Genotype.ZERO
+          : (genotypes.get(i) == oneAllele) ? LdVariant.Genotype.ONE : LdVariant.Genotype.UNKNOWN;
     }
 
     return new LdVariant(new LdVariantInfo(var, oneAllele, zeroAllele), genotypesConv);

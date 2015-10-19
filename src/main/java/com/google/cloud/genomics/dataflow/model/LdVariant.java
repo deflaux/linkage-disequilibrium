@@ -19,6 +19,11 @@ import java.util.BitSet;
  * A small container to store variant data needed to compute LD.
  */
 public class LdVariant implements java.io.Serializable {
+  /**
+   * Indicates allele for each chromosome. For multiallelic sites, two alleles should be selected
+   * for comparison and marked as ZERO or ONE, with reference as ZERO if it is one of the two
+   * alleles. The remaining alleles should be marked as UNKNOWN.
+   */
   public enum Genotype {
     UNKNOWN, ZERO, ONE
   }

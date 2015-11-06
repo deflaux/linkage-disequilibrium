@@ -20,7 +20,9 @@ import com.google.genomics.v1.VariantCall;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Converts Variants into LdVariants. Ensures that Variants have identical call sets. For
@@ -31,9 +33,16 @@ import java.util.List;
  */
 public class LdVariantProcessor implements Serializable {
   private final List<String> callSetsNames;
+  private final Set<String> callSetsToInclude;
 
   public LdVariantProcessor(List<String> callSetsNames) {
     this.callSetsNames = callSetsNames;
+    this.callSetsToInclude = Collections.emptySet();
+  }
+
+  public LdVariantProcessor(List<String> callSetsNames, Set<String> callSetsToInclude) {
+    this.callSetsNames = callSetsNames;
+    this.callSetsToInclude = callSetsToInclude;
   }
 
   // returns null if there is no variation for this variant
@@ -54,7 +63,9 @@ public class LdVariantProcessor implements Serializable {
             "CallSetName mismatch: " + callSetsNames.get(i) + " vs " + vc.getCallSetName());
       }
 
-      genotypes.addAll(vc.getGenotypeList());
+      if (callSetsToInclude.isEmpty() || callSetsToInclude.contains(vc.getCallSetName())) {
+        genotypes.addAll(vc.getGenotypeList());
+      }
     }
 
     int zeroAllele = 0;

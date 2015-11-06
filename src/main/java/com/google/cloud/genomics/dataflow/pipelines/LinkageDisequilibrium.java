@@ -38,6 +38,7 @@ import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.GenomicsUtils;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.genomics.v1.StreamVariantsRequest;
 
@@ -85,6 +86,12 @@ public class LinkageDisequilibrium {
     String getReferences();
 
     void setReferences(String references);
+
+    @Description("Comma separated list of individuals to limit analysis to, empty for all.")
+    @Default.String("")
+    String getCallSetsToUse();
+
+    void setCallSetsToUse(String callSetsToUse);
   }
 
   // null references for all
@@ -131,6 +138,8 @@ public class LinkageDisequilibrium {
         convertStringToContigs(GenomicsUtils.getReferenceBounds(options.getDatasetId(), auth),
             options.isAllReferences() ? null : options.getReferences());
 
+    ImmutableSet<String> callSetsToUse = ImmutableSet.copyOf(options.getCallSetsToUse().split(","));
+
     final double ldCutoff = options.getLdCutoff();
     final long basesPerShard = options.getBasesPerShard();
     final int shardsPerWindow = (int) ((options.getWindow() + basesPerShard - 1) / basesPerShard);
@@ -153,7 +162,9 @@ public class LinkageDisequilibrium {
     Collections.shuffle(shards);
 
     LdVariantProcessor ldVariantProcessor =
-        new LdVariantProcessor(GenomicsUtils.getCallSetsNames(options.getDatasetId(), auth));
+        new LdVariantProcessor(
+            GenomicsUtils.getCallSetsNames(options.getDatasetId(), auth), 
+            callSetsToUse);
 
     Pipeline p = Pipeline.create(options);
     DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,

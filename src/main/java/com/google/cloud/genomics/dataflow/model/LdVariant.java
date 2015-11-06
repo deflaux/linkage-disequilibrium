@@ -68,7 +68,9 @@ public class LdVariant implements java.io.Serializable {
   }
 
   /**
-   * Computes LD between this and that variant.
+   * Computes LD between this and that variant. Return zero for both r and D' if the correlation 
+   * cannot be computed (note: this can happen even if hasVariation if UNKNOWN values in one lead
+   to insufficient variation in the other).
    */
   public LdValue computeLd(LdVariant that) {
     assert this.genotypesCount == that.genotypesCount;
@@ -89,6 +91,10 @@ public class LdVariant implements java.io.Serializable {
     long ab = oneInBoth.cardinality();
     long a = oneInThis.cardinality();
     long b = oneInThat.cardinality();
+
+    if (n == 0 || a == 0 || b == 0 || n==a || n==b) {
+      return new LdValue(this.info, that.info, (int) n, 0.0, 0.0);
+    }
 
     // TODO: Test this throughly, particularly investigate numerical stability.
     double top = (double) (n * ab - a * b);

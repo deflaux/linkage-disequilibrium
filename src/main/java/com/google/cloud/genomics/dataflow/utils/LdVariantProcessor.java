@@ -107,7 +107,7 @@ public class LdVariantProcessor implements Serializable {
           : (genotypes.get(i) == oneAllele) ? LdVariant.Genotype.ONE : LdVariant.Genotype.UNKNOWN;
     }
 
-    return new LdVariant(new LdVariantInfo(var, oneAllele, zeroAllele), genotypesConv);
+    return new LdVariant(new LdVariantInfo(var, zeroAllele, oneAllele), genotypesConv);
   }
 }
 

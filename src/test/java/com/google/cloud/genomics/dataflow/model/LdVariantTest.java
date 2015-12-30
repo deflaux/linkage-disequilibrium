@@ -23,7 +23,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class LdVariantTest {
-  LdVariantInfo info = new LdVariantInfo("", "", 0, 0, 0, 0, "", 0, "");
+  LdVariantInfo info = new LdVariantInfo("", 0, 0, "", "", 0, 0, "", 0, "");
 
   @Test
   public void testHasVariation() {

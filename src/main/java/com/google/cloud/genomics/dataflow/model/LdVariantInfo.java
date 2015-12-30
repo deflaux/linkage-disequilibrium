@@ -22,10 +22,11 @@ import java.io.Serializable;
  * Position and allele information for a given variant.
  */
 public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
-  private final String id;
   private final String referenceName;
   private final long start;
   private final long end;
+  private final String cloudId;
+  private final String rsIds;
 
   private final int alternateBasesCount;
   private final int zeroAllele;
@@ -34,19 +35,27 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   private final String oneAlleleBases;
 
   public LdVariantInfo(Variant var, int zeroAllele, int oneAllele) {
-    this(var.getId(), var.getReferenceName(), var.getStart(), var.getEnd(),
-        var.getAlternateBasesCount(), zeroAllele,
-        zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
-        oneAllele, oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
+    this(
+      var.getReferenceName(),
+      var.getStart(),
+      var.getEnd(),
+      var.getId(),
+      "RSID_PLACEHOLDER", // TODO(pouyak): set rsid here
+      var.getAlternateBasesCount(),
+      zeroAllele,
+      zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
+      oneAllele,
+      oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
   }
 
-  public LdVariantInfo(String id, String referenceName, long start, long end,
+  public LdVariantInfo(String referenceName, long start, long end, String cloudId, String rsIds,
       int alternateBasesCount, int zeroAllele, String zeroAlleleBases, int oneAllele,
       String oneAlleleBases) {
-    this.id = id;
     this.referenceName = referenceName;
     this.start = start;
     this.end = end;
+    this.cloudId = cloudId;
+    this.rsIds = rsIds;
     this.alternateBasesCount = alternateBasesCount;
     this.zeroAllele = zeroAllele;
     this.zeroAlleleBases = zeroAlleleBases;
@@ -54,8 +63,12 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
     this.oneAlleleBases = oneAlleleBases;
   }
 
-  public String getId() {
-    return id;
+  public String getCloudId() {
+    return cloudId;
+  }
+
+  public String getRsIds() {
+    return rsIds;
   }
 
   public String getReferenceName() {
@@ -78,14 +91,24 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
     return oneAllele;
   }
 
+  /* Output format (separated by commas)
+   * 1. chromosome
+   * 2. start position (0-based inclusive)
+   * 3. end position (0-based exclusive)
+   * 4. Cloud Genomics ID
+   * 5. Semicolon-separated list of rsids
+   * 6. The number of alternative alleles
+   * 7. The bases corresponding to the allele represented as 0 in the LD calculation
+   * 8. The bases corresponding to the allele represented as 1 in the LD calculation
+   */
   public String toString() {
-    return String.format("%s:%s:%d:%d:%d:%s:%s", id, referenceName, start, end, alternateBasesCount,
+    return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, cloudId, rsIds, alternateBasesCount,
         zeroAlleleBases, oneAlleleBases);
   }
 
   public int compareTo(LdVariantInfo that) {
     return ComparisonChain.start().compare(this.referenceName, that.referenceName)
-        .compare(this.start, that.start).compare(this.end, that.end).compare(this.id, that.id)
+        .compare(this.start, that.start).compare(this.end, that.end).compare(this.cloudId, that.cloudId)
         .result();
   }
 

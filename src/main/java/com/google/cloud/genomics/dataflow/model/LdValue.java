@@ -22,14 +22,20 @@ public class LdValue implements Serializable {
   private final LdVariantInfo query;
   private final LdVariantInfo target;
   private final int compCount;
+  private final int queryOneAlleleCount;
+  private final int targetOneAlleleCount;
+  private final int queryAndTargetOneAlleleCount;
   private final double r;
   private final double dPrime;
 
-  public LdValue(LdVariantInfo query, LdVariantInfo target, int compCount, double r,
-      double dPrime) {
+  public LdValue(LdVariantInfo query, LdVariantInfo target, int compCount, int queryOneAlleleCount,
+      int targetOneAlleleCount, int queryAndTargetOneAlleleCount, double r, double dPrime) {
     this.query = query;
     this.target = target;
     this.compCount = compCount;
+    this.queryOneAlleleCount = queryOneAlleleCount;
+    this.targetOneAlleleCount = targetOneAlleleCount;
+    this.queryAndTargetOneAlleleCount = queryAndTargetOneAlleleCount;
     this.r = r;
     this.dPrime = dPrime;
   }
@@ -46,6 +52,18 @@ public class LdValue implements Serializable {
     return compCount;
   }
 
+  public int getQueryOneAlleleCount() {
+    return queryOneAlleleCount;
+  }
+
+  public int getTargetOneAlleleCount() {
+    return targetOneAlleleCount;
+  }
+
+  public int getQueryAndTargetOneAlleleCount() {
+    return queryAndTargetOneAlleleCount;
+  }
+
   public double getR() {
     return r;
   }
@@ -55,12 +73,23 @@ public class LdValue implements Serializable {
   }
 
   public LdValue reverse() {
-    return new LdValue(target, query, compCount, r, dPrime);
+    return new LdValue(target, query, compCount, targetOneAlleleCount, queryOneAlleleCount, 
+        queryAndTargetOneAlleleCount, r, dPrime);
   }
 
+  /* Output format (separated by commas):
+   * 1-8.  Properties of query variant (see LdVariantInfo.toString)
+   * 9-16. Properties of target variant
+   * 17. Number of chromosomes used in comparison
+   * 18. Number of chromosomes used in comparison with one allele for query
+   * 19. Number of chromosomes used in comparison with one allele for target
+   * 20. Number of chromosomes used in comparison with one allele for both query and target
+   * 21. r
+   * 22. D'
+   */
   public String toString() {
-    return String.format("%s %s %d %f %f", query.toString(), target.toString(), compCount, r,
-        dPrime);
+    return String.format("%s,%s,%d,%d,%d,%d,%f,%f", query.toString(), target.toString(), compCount,
+        queryOneAlleleCount, targetOneAlleleCount, queryAndTargetOneAlleleCount, r, dPrime);
   }
 }
 

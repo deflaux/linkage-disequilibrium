@@ -7,11 +7,30 @@
   <groupId>com.google.cloud.genomics</groupId>
   <artifactId>linkage-disequilibrium</artifactId>
 
+  <properties>
+    <compileSource>1.8</compileSource>
+    <dataflow.version>1.0.0</dataflow.version>
+    <genomics.dataflow.version>v1beta2-0.16-SNAPSHOT</genomics.dataflow.version>
+    <maven.compiler.version>3.3</maven.compiler.version>
+    <!-- See bug referenced in "repositories" section below -->
+    <bigtable.version>0.2.3-SNAPSHOT</bigtable.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>com.google.cloud.genomics</groupId>
       <artifactId>google-genomics-dataflow</artifactId>
-      <version>v1beta2-0.16-SNAPSHOT</version>
+      <version>${genomics.dataflow.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.dataflow</groupId>
+      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
+      <version>${dataflow.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigtable</groupId>
+      <artifactId>bigtable-hbase-dataflow</artifactId>
+      <version>${bigtable.version}</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -26,10 +45,13 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.2</version>
+        <version>${maven.compiler.version}</version>
         <configuration>
-          <source>${java.version}</source>
-          <target>${java.version}</target>
+          <source>${compileSource}</source>
+          <target>${compileSource}</target>
+          <showWarnings>true</showWarnings>
+          <showDeprecation>false</showDeprecation>
+          <compilerArgument>-Xlint:-options</compilerArgument>
         </configuration>
       </plugin>
 
@@ -73,7 +95,13 @@
     </plugins>
   </build>
 
-  <properties>
-    <java.version>1.7</java.version>
-  </properties>
+  <!-- See https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/613 -->
+  <repositories>
+    <repository>
+      <id>snapshots-repo</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <releases><enabled>false</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+  </repositories>
 </project>

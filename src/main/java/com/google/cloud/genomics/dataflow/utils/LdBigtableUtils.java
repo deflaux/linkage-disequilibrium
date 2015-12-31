@@ -113,6 +113,12 @@ public class LdBigtableUtils {
    * Returns a 16-bit integer hash of the two alleles.
    */
   private static int alleleHash(String zeroAllele, String oneAllele) {
+    // Explicitly force the sentinel alleles to the boundary values of the hash function
+    if (MIN_ALLELE.equals(zeroAllele) && MIN_ALLELE.equals(oneAllele)) {
+      return 0;
+    } else if (MAX_ALLELE.equals(zeroAllele) && MAX_ALLELE.equals(oneAllele)) {
+      return 0x0000FFFF;
+    }
     String toHash = String.format("%s,%s", zeroAllele, oneAllele);
     return simpleSkewed16BitHash(toHash.hashCode());
   }

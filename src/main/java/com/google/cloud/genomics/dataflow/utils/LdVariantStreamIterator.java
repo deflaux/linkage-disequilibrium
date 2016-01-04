@@ -29,13 +29,14 @@ import java.util.PriorityQueue;
 /**
  * Wrapper for VariantStreamIterator.
  *
- * 1. Ensures that variants come from the same reference in sorted order (as indicated by
- * LdVariantInfo.compareTo). Note: input variants from VariantStreamIterator are sorted by start
- * only.
- *
- * 2. Rather than return a list of variants per next() call, returns one at a time.
- *
- * 3. Discards LdVariants that do not have variation.
+ * <ul>
+ *    <li> Ensures that variants come from the same reference in sorted order (as indicated by
+ *         LdVariantInfo.compareTo). Note: input variants from VariantStreamIterator are sorted by
+ *         start only.
+ *    <li> Rather than return a list of variants per next() call, returns one at a time.
+ *    <li> Discards LdVariants that do not have variation (and thus have undefined LD to any other
+ *         variant.
+ * </ul>
  */
 public class LdVariantStreamIterator implements Iterator<LdVariant> {
   private Iterator<StreamVariantsResponse> streamIter;
@@ -46,6 +47,13 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   private long lastStart = -1;
   private final String referenceName;
 
+  /**
+   * Create new LdVariantStreamIterator.
+   *
+   * @param request Stream of variants to read from.
+   * @param auth Authorization for reading variants.
+   * @param ldVariantProcessor LdVariantProcessor to run each variant through.
+   */
   public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
       LdVariantProcessor ldVariantProcessor)
           throws java.io.IOException, java.security.GeneralSecurityException {
@@ -61,6 +69,9 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
     }
   }
 
+  /**
+   * Returns true when there are remaining varints in the stream with Variation.
+   */
   public boolean hasNext() {
     while (storedLdVars.isEmpty()
         || (storedLdVars.peek().getInfo().getStart() == lastStart && streamIter.hasNext())) {

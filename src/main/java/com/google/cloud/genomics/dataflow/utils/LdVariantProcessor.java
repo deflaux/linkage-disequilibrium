@@ -40,12 +40,32 @@ public class LdVariantProcessor implements Serializable {
     this.callSetsToInclude = Collections.emptySet();
   }
 
+  /** 
+   * Returns LdVariantProcessor with filtered CallSets.
+   * 
+   * @param callSetsNames The CallSets for the Variants that will be processed here.
+   * @param callSetsToInclude The subset of CallSets to include for the processed LdVariants.
+   *    null indicates no filtering.
+   */
   public LdVariantProcessor(List<String> callSetsNames, Set<String> callSetsToInclude) {
     this.callSetsNames = callSetsNames;
     this.callSetsToInclude = callSetsToInclude;
   }
 
-  // returns null if there is no variation for this variant
+  /**
+   * Converts a Variant to an LdVariant, removing information unneeded for computing LD and 
+   * redundant between variants. 
+   
+   * The "zero" and "one" alleles are chosen as the two most used alleles for this variant after 
+   * performing filtering. The "zero" allele is the reference if the reference is amongst the top
+   * two alleles and otherwise the more abundant allele.
+   * 
+   * @param var Input Variant.
+   * @return Converted LDVariant corresponding to var.
+   * @exception IllegalArgumentException if the CallSet does not match what this LdVariantProcessor
+   *    was initialized with. NOTE: it does not check that the number of alleles per CallSet
+   *    matches.
+   */
   public LdVariant convertVariant(Variant var) {
     List<VariantCall> calls = var.getCallsList();
 

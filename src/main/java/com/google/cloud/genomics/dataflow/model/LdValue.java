@@ -72,12 +72,17 @@ public class LdValue implements Serializable {
     return dPrime;
   }
 
+  /**
+   * Returns an LdValue with the query and target reversed.
+   */
   public LdValue reverse() {
     return new LdValue(target, query, compCount, targetOneAlleleCount, queryOneAlleleCount, 
         queryAndTargetOneAlleleCount, r, dPrime);
   }
 
-  /* Output format (separated by commas):
+  /**
+   * Converts this LdValue to a string, using the following format (separated by commas):
+   * 
    * 1-8.  Properties of query variant (see LdVariantInfo.toString)
    * 9-16. Properties of target variant
    * 17. Number of chromosomes used in comparison

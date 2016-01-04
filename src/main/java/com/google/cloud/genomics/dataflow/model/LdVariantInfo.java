@@ -19,7 +19,7 @@ import com.google.genomics.v1.Variant;
 import java.io.Serializable;
 
 /**
- * Position and allele information for a given variant.
+ * Container that stores position and allele information for a given variant.
  */
 public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   private final String referenceName;
@@ -91,7 +91,10 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
     return oneAllele;
   }
 
-  /* Output format (separated by commas)
+  /**
+   * Converts LdVariantInfo to a string.
+   * 
+   * Output format (separated by commas)
    * 1. chromosome
    * 2. start position (0-based inclusive)
    * 3. end position (0-based exclusive)

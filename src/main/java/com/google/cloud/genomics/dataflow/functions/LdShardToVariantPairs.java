@@ -23,17 +23,30 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
+ * Part of the LinkageDisequilibrium pipeline that consumes pairs of LdVariant lists (one query
+ * and one target), and emits all pairs of LdVariants to cover all pairs of comparisons where 
+ * the LdVariant from the query is "before" (as defined by LdVariant.compareTo()) the target 
+ * LdVariant and the end of query is within window of the start of target.
  */
 public class LdShardToVariantPairs
     extends DoFn<KV<String, Iterable<KV<Boolean, List<LdVariant>>>>, KV<LdVariant, LdVariant>> {
   private final long window;
-  private final int shardsPerWindow;
 
-  public LdShardToVariantPairs(long window, int shardsPerWindow) {
+  /** 
+   * Parameter used to create all legal pairs of comparisons.
+   *
+   * @param window Maximum window between variants.
+   */
+  public LdShardToVariantPairs(long window) {
     this.window = window;
-    this.shardsPerWindow = shardsPerWindow;
   }
 
+  /**
+   * Processes LdVariant lists to produce pairs of LdVariants. 
+   *
+   * All the pairs that are emitted here must be desired comparisons with no duplicates -- 
+   * no additional filters are done other than (optionally) on the LD value itself. 
+   */
   @Override
   public void processElement(ProcessContext c) {
     List<LdVariant> queryList = null;

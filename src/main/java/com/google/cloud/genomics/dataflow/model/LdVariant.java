@@ -16,7 +16,7 @@ package com.google.cloud.genomics.dataflow.model;
 import java.util.BitSet;
 
 /**
- * A small container to store variant data needed to compute LD.
+ * Container to store variant data needed to compute LD.
  */
 public class LdVariant implements java.io.Serializable {
   /**
@@ -96,7 +96,8 @@ public class LdVariant implements java.io.Serializable {
       return new LdValue(this.info, that.info, (int) n, (int) a, (int) b, (int) ab, 0.0, 0.0);
     }
 
-    // TODO: Test this throughly, particularly investigate numerical stability.
+    // TODO: Investigate the numerical stability of this computational (everything up until here
+    //       should be exact.
     double top = (double) (n * ab - a * b);
     double r = top / Math.sqrt(a * (n - a) * b * (n - b));
     double dPrime =

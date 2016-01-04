@@ -52,17 +52,7 @@ import java.util.List;
  * Computes linkage disequilibrium r and D' between all variants that start inside the references
  * list if they are within window of each other.
  * 
- * Outputs name1, name2, num, r for those pairs whose r is at least cutoff. For variants with
- * greater than two alleles, the top two alleles are used for the comparison and are appended to the
- * output name.
- * 
- * TODO: Option to work on unphased data.
- * 
- * TODO: Add tests, with special attention to the following cases: 1. When the window size is
- * greater than a shard size, and the converse. 2. Variants that overlap a shard, window, and
- * reference boundary (off-by-one errors, in particular). 3. Multiple variants at the same start
- * and/or end, including overlaps with shard, window, and reference boundaries. 4. 1 bp shards,
- * empty shards, shards past the end of the chromosome.
+ * For output format, see LdValue.toString().
  */
 public class LinkageDisequilibrium {
   /**
@@ -94,7 +84,14 @@ public class LinkageDisequilibrium {
     void setCallSetsToUse(String callSetsToUse);
   }
 
-  // null references for all
+  /**
+   * Takes size of each reference and string indicating regions and outputs the corresponding 
+   * Contig(s).
+   * 
+   * @param refBounds List indicating the size of each reference (chromosome).
+   * @param references Comma separated string of: chr[:start:stop] (0-index, end exclusive).
+   * @return references converted to a list of Contig(s).
+   */
   private static List<Contig> convertStringToContigs(List<ReferenceBound> refBounds,
       String references) {
     if (references == null) {
@@ -158,7 +155,7 @@ public class LinkageDisequilibrium {
       }
       contigIndex++;
     }
-    // shuffle to spread out requests
+    // shuffle to spread out requests.
     Collections.shuffle(shards);
 
     LdVariantProcessor ldVariantProcessor =
@@ -170,13 +167,14 @@ public class LinkageDisequilibrium {
     DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,
         Proto2Coder.of(StreamVariantsRequest.class));
 
+    // Create pipeline graph.
     p.apply(Create.of(shards))
         .apply(ParDo.named("LdCreateVariantListsAndAssign")
             .of(new LdCreateVariantListsAndAssign(auth, basesPerShard, shardsPerWindow,
                 ldVariantProcessor)))
         .apply(GroupByKey.<String, KV<Boolean, List<LdVariant>>>create())
         .apply(ParDo.named("LdShardToVariantPairs")
-            .of(new LdShardToVariantPairs(options.getWindow(), shardsPerWindow)))
+            .of(new LdShardToVariantPairs(options.getWindow())))
         .apply(ParDo.named("ComputeLd").of(new DoFn<KV<LdVariant, LdVariant>, LdValue>() {
           @Override
           public void processElement(ProcessContext c) {

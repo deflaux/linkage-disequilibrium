@@ -34,13 +34,21 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   private final int oneAllele;
   private final String oneAlleleBases;
 
+  /**
+   * Initializes LdVariantInfo from input Variant.
+   *
+   * @param var Variant to use to obtain reference name, start, end, id, rsid, etc from.
+   *            The first value in the name field is used as the rsid (blank of none available).
+   * @param zeroAllele Allele to use for zero in correlation (0 is reference)
+   * @param oneAllele Allele to use for one in correlation
+   */
   public LdVariantInfo(Variant var, int zeroAllele, int oneAllele) {
     this(
       var.getReferenceName(),
       var.getStart(),
       var.getEnd(),
       var.getId(),
-      "RSID_PLACEHOLDER", // TODO(pouyak): set rsid here
+      var.getNamesCount() >= 1 ? var.getNames(0) : "",
       var.getAlternateBasesCount(),
       zeroAllele,
       zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),

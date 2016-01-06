@@ -66,7 +66,6 @@ public class LdCreateVariantListsAndAssign extends
     this.ldVariantProcessor = ldVariantProcessor;
   }
 
-
   /**
    * Returns list with all variants that start before a specified position removed.
    *
@@ -117,18 +116,8 @@ public class LdCreateVariantListsAndAssign extends
 
     // vars uses "OVERLAPS" boundary semantics -- it includes everything that overlaps a
     // region (even if it is not completely found within the region).
-    List<LdVariant> vars;
-    for (int attempt = 1;; attempt++) {
-      try {
-        vars = ImmutableList.copyOf(new LdVariantStreamIterator(shard, auth, ldVariantProcessor));
-      } catch (io.grpc.StatusRuntimeException e) {
-        if (attempt < 10) {
-          continue;
-        }
-        throw e;
-      }
-      break;
-    }
+    List<LdVariant> vars = ImmutableList.copyOf(
+        new LdVariantStreamIterator(shard, auth, ldVariantProcessor));
 
     // Remove anything from before the start of the contig.
     vars = filterStartLdVariants(vars, contig.start);

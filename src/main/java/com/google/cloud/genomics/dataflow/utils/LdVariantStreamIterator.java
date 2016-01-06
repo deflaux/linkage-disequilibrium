@@ -14,7 +14,7 @@
 package com.google.cloud.genomics.dataflow.utils;
 
 import com.google.cloud.genomics.dataflow.model.LdVariant;
-import com.google.cloud.genomics.utils.GenomicsFactory;
+import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.cloud.genomics.utils.ShardBoundary;
 import com.google.cloud.genomics.utils.grpc.VariantStreamIterator;
 import com.google.genomics.v1.StreamVariantsRequest;
@@ -54,10 +54,11 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
    * @param auth Authorization for reading variants.
    * @param ldVariantProcessor LdVariantProcessor to run each variant through.
    */
-  public LdVariantStreamIterator(StreamVariantsRequest request, GenomicsFactory.OfflineAuth auth,
+  public LdVariantStreamIterator(StreamVariantsRequest request, OfflineAuth auth,
       LdVariantProcessor ldVariantProcessor)
           throws java.io.IOException, java.security.GeneralSecurityException {
-    streamIter = new VariantStreamIterator(request, auth, ShardBoundary.Requirement.OVERLAPS, null);
+    streamIter = VariantStreamIterator.enforceShardBoundary(
+        auth, request, ShardBoundary.Requirement.OVERLAPS, null);
     referenceName = request.getReferenceName();
     this.ldVariantProcessor = ldVariantProcessor;
   }

@@ -25,7 +25,7 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   private final String referenceName;
   private final long start;
   private final long end;
-  private final String cloudId;
+  private final String variantId;
   private final String rsIds;
 
   private final int alternateBasesCount;
@@ -56,13 +56,13 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
       oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
   }
 
-  public LdVariantInfo(String referenceName, long start, long end, String cloudId, String rsIds,
+  public LdVariantInfo(String referenceName, long start, long end, String variantId, String rsIds,
       int alternateBasesCount, int zeroAllele, String zeroAlleleBases, int oneAllele,
       String oneAlleleBases) {
     this.referenceName = referenceName;
     this.start = start;
     this.end = end;
-    this.cloudId = cloudId;
+    this.variantId = variantId;
     this.rsIds = rsIds;
     this.alternateBasesCount = alternateBasesCount;
     this.zeroAllele = zeroAllele;
@@ -72,7 +72,7 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   }
 
   public String getCloudId() {
-    return cloudId;
+    return variantId;
   }
 
   public String getRsIds() {
@@ -113,13 +113,13 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
    * 8. The bases corresponding to the allele represented as 1 in the LD calculation
    */
   public String toString() {
-    return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, cloudId, rsIds, alternateBasesCount,
+    return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, variantId, rsIds, alternateBasesCount,
         zeroAlleleBases, oneAlleleBases);
   }
 
   public int compareTo(LdVariantInfo that) {
     return ComparisonChain.start().compare(this.referenceName, that.referenceName)
-        .compare(this.start, that.start).compare(this.end, that.end).compare(this.cloudId, that.cloudId)
+        .compare(this.start, that.start).compare(this.end, that.end).compare(this.variantId, that.variantId)
         .result();
   }
 

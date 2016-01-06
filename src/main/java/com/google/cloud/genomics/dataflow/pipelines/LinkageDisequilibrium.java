@@ -29,13 +29,13 @@ import com.google.cloud.genomics.dataflow.functions.LdCreateVariantListsAndAssig
 import com.google.cloud.genomics.dataflow.functions.LdShardToVariantPairs;
 import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
-import com.google.cloud.genomics.dataflow.utils.DataflowWorkarounds;
-import com.google.cloud.genomics.dataflow.utils.GenomicsDatasetOptions;
 import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
+import com.google.cloud.genomics.dataflow.utils.GCSOutputOptions;
+import com.google.cloud.genomics.dataflow.utils.ShardOptions;
 import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.utils.Contig;
-import com.google.cloud.genomics.utils.GenomicsFactory;
 import com.google.cloud.genomics.utils.GenomicsUtils;
+import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
@@ -58,8 +58,7 @@ import java.util.List;
  *   com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \
  *   --output="gs://<PATH_TO_OUTPUT_FILE>" \
  *   --stagingLocation="gs://<YOUR_BUCKET>/staging" \
- *   --secretsFile="<YOUR_SECRETS_FILE>" \
- *   --datasetId=4252737135923902652 \
+ *   --variantSetId=4252737135923902652 \
  *   --ldCutoff=0.4 \
  *   --references=20:10000000:30000000 \
  *   --window=1000000 \
@@ -76,7 +75,7 @@ public class LinkageDisequilibrium {
   /**
    * Additional options for computing LD.
    */
-  public interface LinkageDisequilibriumOptions extends GenomicsDatasetOptions {
+  public interface LinkageDisequilibriumOptions extends ShardOptions, GCSOutputOptions {
     @Description("Window to use in computing LD.")
     @Default.Long(1000000L)
     Long getWindow();
@@ -100,6 +99,13 @@ public class LinkageDisequilibrium {
     String getCallSetsToUse();
 
     void setCallSetsToUse(String callSetsToUse);
+
+    @Description("The ID of the Google Genomics variant set this pipeline is accessing. "
+        + "Defaults to 1000 Genomes.")
+    @Default.String("10473108253681171589")
+    String getVariantSetId();
+
+    void setVariantSetId(String variantSetId);
   }
 
   /**
@@ -145,12 +151,12 @@ public class LinkageDisequilibrium {
     PipelineOptionsFactory.register(LinkageDisequilibriumOptions.class);
     final LinkageDisequilibriumOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation().as(LinkageDisequilibriumOptions.class);
-    LinkageDisequilibriumOptions.Methods.validateOptions(options);
+    GCSOutputOptions.Methods.validateOptions(options);
 
-    final GenomicsFactory.OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
+    final OfflineAuth auth = GenomicsOptions.Methods.getGenomicsAuth(options);
 
     List<Contig> contigs =
-        convertStringToContigs(GenomicsUtils.getReferenceBounds(options.getDatasetId(), auth),
+        convertStringToContigs(GenomicsUtils.getReferenceBounds(options.getVariantSetId(), auth),
             options.isAllReferences() ? null : options.getReferences());
 
     ImmutableSet<String> callSetsToUse = ImmutableSet.copyOf(options.getCallSetsToUse().split(","));
@@ -167,7 +173,7 @@ public class LinkageDisequilibrium {
       int shardIndex = 0;
       for (long start = contig.start; start < contig.end; shardIndex++, start += basesPerShard) {
         StreamVariantsRequest shard = StreamVariantsRequest.newBuilder()
-            .setVariantSetId(options.getDatasetId()).setReferenceName(contig.referenceName)
+            .setVariantSetId(options.getVariantSetId()).setReferenceName(contig.referenceName)
             .setStart(start).setEnd(Math.min(contig.end, start + basesPerShard)).build();
         shards.add(KV.of(KV.of(contigIndex, contig), KV.of(shardIndex, shard)));
       }
@@ -178,11 +184,11 @@ public class LinkageDisequilibrium {
 
     LdVariantProcessor ldVariantProcessor =
         new LdVariantProcessor(
-            GenomicsUtils.getCallSetsNames(options.getDatasetId(), auth), 
+            GenomicsUtils.getCallSetsNames(options.getVariantSetId(), auth), 
             callSetsToUse);
 
     Pipeline p = Pipeline.create(options);
-    DataflowWorkarounds.registerCoder(p, StreamVariantsRequest.class,
+    p.getCoderRegistry().registerCoder(StreamVariantsRequest.class,
         Proto2Coder.of(StreamVariantsRequest.class));
 
     // Create pipeline graph.

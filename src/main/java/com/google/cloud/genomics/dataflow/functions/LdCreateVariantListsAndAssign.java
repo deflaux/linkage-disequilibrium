@@ -19,7 +19,7 @@ import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
 import com.google.cloud.genomics.dataflow.utils.LdVariantStreamIterator;
 import com.google.cloud.genomics.utils.Contig;
-import com.google.cloud.genomics.utils.GenomicsFactory;
+import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.common.collect.ImmutableList;
 import com.google.genomics.v1.StreamVariantsRequest;
 
@@ -43,7 +43,7 @@ import java.util.ListIterator;
 public class LdCreateVariantListsAndAssign extends
     DoFn<KV<KV<Integer, Contig>, KV<Integer, StreamVariantsRequest>>, KV<String, KV<Boolean, List<LdVariant>>>> {
 
-  private final GenomicsFactory.OfflineAuth auth;
+  private final OfflineAuth auth;
   private final long basesPerShard;
   private final int shardsPerWindow;
   private final LdVariantProcessor ldVariantProcessor;
@@ -58,7 +58,7 @@ public class LdCreateVariantListsAndAssign extends
    * @param ldVariantProcessor Processor that takes a Variant and creates an LdVariant removing
    *    unneeded data.
    */
-  public LdCreateVariantListsAndAssign(GenomicsFactory.OfflineAuth auth, long basesPerShard,
+  public LdCreateVariantListsAndAssign(OfflineAuth auth, long basesPerShard,
       int shardsPerWindow, LdVariantProcessor ldVariantProcessor) {
     this.auth = auth;
     this.basesPerShard = basesPerShard;

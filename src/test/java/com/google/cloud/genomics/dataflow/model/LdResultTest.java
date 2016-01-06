@@ -39,58 +39,6 @@ public class LdResultTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void constructLdResult() {
-    LdResult result = new LdResult(
-        "22",
-        10,
-        11,
-        "12935662044341619522",
-        "rsA",
-        1,
-        "A",
-        "G",
-        "X",
-        15,
-        20,
-        "14796642673562247416",
-        "rsB",
-        2,
-        "CAAGT",
-        "C",
-        1006,
-        34,
-        45,
-        23,
-        0.43,
-        0.66
-        );
-    assertEquals(result.queryChrom(), "22");
-    assertEquals(result.queryStart(), 10);
-    assertEquals(result.queryEnd(), 11);
-    assertEquals(result.queryCloudId(), "12935662044341619522");
-    assertEquals(result.queryNames(), "rsA");
-    assertEquals(result.queryNumAltAlleles(), 1);
-    assertEquals(result.queryZeroAllele(), "A");
-    assertEquals(result.queryOneAllele(), "G");
-
-    assertEquals(result.targetChrom(), "X");
-    assertEquals(result.targetStart(), 15);
-    assertEquals(result.targetEnd(), 20);
-    assertEquals(result.targetCloudId(), "14796642673562247416");
-    assertEquals(result.targetNames(), "rsB");
-    assertEquals(result.targetNumAltAlleles(), 2);
-    assertEquals(result.targetZeroAllele(), "CAAGT");
-    assertEquals(result.targetOneAllele(), "C");
-
-    assertEquals(result.numChromosomes(), 1006);
-    assertEquals(result.numQueryOneAlleleChromosomes(), 34);
-    assertEquals(result.numTargetOneAlleleChromosomes(), 45);
-    assertEquals(result.numQueryAndTargetOneAlleleChromosomes(), 23);
-    assertEquals(result.allelicCorrelation(), 0.43, 1e-8);
-    assertEquals(result.dprime(), 0.66, 1e-8);
-  }
-
-  @Test
   public void loadFromString() {
     LdResult result = LdResult.fromLine(STRVAL);
     assertEquals(result.queryChrom(), "22");

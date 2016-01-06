@@ -18,9 +18,15 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.cloud.genomics</groupId>
-      <artifactId>google-genomics-dataflow</artifactId>
-      <version>${genomics.dataflow.version}</version>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <version>1.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigtable</groupId>
+      <artifactId>bigtable-hbase-dataflow</artifactId>
+      <version>${bigtable.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.dataflow</groupId>
@@ -28,9 +34,9 @@
       <version>${dataflow.version}</version>
     </dependency>
     <dependency>
-      <groupId>com.google.cloud.bigtable</groupId>
-      <artifactId>bigtable-hbase-dataflow</artifactId>
-      <version>${bigtable.version}</version>
+      <groupId>com.google.cloud.genomics</groupId>
+      <artifactId>google-genomics-dataflow</artifactId>
+      <version>${genomics.dataflow.version}</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -49,6 +55,9 @@
         <configuration>
           <source>${compileSource}</source>
           <target>${compileSource}</target>
+          <!-- To fix compiler bug when using the AutoValue class, see
+               https://github.com/immutables/immutables/issues/134 -->
+          <useIncrementalCompilation>false</useIncrementalCompilation>
           <showWarnings>true</showWarnings>
           <showDeprecation>false</showDeprecation>
           <compilerArgument>-Xlint:-options</compilerArgument>

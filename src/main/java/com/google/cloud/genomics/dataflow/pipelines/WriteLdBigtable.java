@@ -35,7 +35,7 @@ import org.apache.hadoop.hbase.util.Bytes;
  * This pipeline loads the results of the LinkageDisequilibrium pipeline into a Cloud BigTable.
  *
  * <p>
- * The Cloud BigTable must already by created and have a column family named "ld" to which all
+ * The Cloud BigTable must already be created and have a column family named "ld" to which all
  * results will be written. The key for the table enables fast searches by genomic region.
  *
  * <p>
@@ -99,7 +99,7 @@ public class WriteLdBigtable {
               .addColumn(
                   LdBigtableUtils.FAMILY,
                   LdBigtableUtils.QUALIFIER,
-                  Bytes.toBytes(entry.toString())));
+                  Bytes.toBytes(c.element())));
     }
   };
 

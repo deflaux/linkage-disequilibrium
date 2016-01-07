@@ -1,0 +1,134 @@
+[
+  {
+    "name": "qchrom",
+    "type": "string",
+    "description": "The chromosome of the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qstart",
+    "type": "integer",
+    "description": "The start position of the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qend",
+    "type": "integer",
+    "description": "The end position of the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qid",
+    "type": "integer",
+    "description": "The Cloud Genomics ID of the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qname",
+    "type": "string",
+    "description": "A semicolon-delimited list of names for the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qnumalt",
+    "type": "integer",
+    "description": "The number of alternate alleles defined for the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qzeroallele",
+    "type": "string",
+    "description": "The allele coded as zero in LD calculations for the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "qoneallele",
+    "type": "string",
+    "description": "The allele coded as one in LD calculations for the query variant",
+    "mode": "required"
+  },
+  {
+    "name": "tchrom",
+    "type": "string",
+    "description": "The chromosome of the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tstart",
+    "type": "integer",
+    "description": "The start position of the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tend",
+    "type": "integer",
+    "description": "The end position of the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tid",
+    "type": "integer",
+    "description": "The Cloud Genomics ID of the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tname",
+    "type": "string",
+    "description": "A semicolon-delimited list of names for the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tnumalt",
+    "type": "integer",
+    "description": "The number of alternate alleles defined for the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "tzeroallele",
+    "type": "string",
+    "description": "The allele coded as zero in LD calculations for the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "toneallele",
+    "type": "string",
+    "description": "The allele coded as one in LD calculations for the target variant",
+    "mode": "required"
+  },
+  {
+    "name": "num_chroms",
+    "type": "integer",
+    "description": "The number of chromosomes used in the LD calculation",
+    "mode": "required"
+  },
+  {
+    "name": "num_qone_chroms",
+    "type": "integer",
+    "description": "The number of chromosomes for which the query variant has the one allele",
+    "mode": "required"
+  },
+  {
+    "name": "num_tone_chroms",
+    "type": "integer",
+    "description": "The number of chromosomes for which the target variant has the one allele",
+    "mode": "required"
+  },
+  {
+    "name": "num_bothone_chroms",
+    "type": "integer",
+    "description": "The number of chromosomes for which both the query and target variants have the one allele",
+    "mode": "required"
+  },
+  {
+    "name": "corr",
+    "type": "float",
+    "description": "The allelic correlation between the variants",
+    "mode": "required"
+  },
+  {
+    "name": "dprime",
+    "type": "float",
+    "description": "The D' measure of LD between the variants",
+    "mode": "required"
+  }
+]

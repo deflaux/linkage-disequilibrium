@@ -18,6 +18,8 @@ import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
 
+import com.google.common.collect.ImmutableMap;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,19 +27,17 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Converts Variants into LdVariants. Ensures that Variants have identical call sets. For
+ * Converts Variants into LdVariants. Ensures that Variants have the expected callSets. For
  * multiallelic variants, chooses the two alleles with the highest observed frequency. If one of
  * those alleles is the reference, it stays as zeroAllele, otherwise the highest frequency alelle is
  * assigned zeroAllele and the other to oneAllele. Note: does not currently check that the number of
  * genotypes for each callset or the total number of genotypes matches.
  */
 public class LdVariantProcessor implements Serializable {
-  private final List<String> callSetsNames;
-  private final Set<String> callSetsToInclude;
+  private final ImmutableMap<String, Integer> callSetsToIndex;
 
   public LdVariantProcessor(List<String> callSetsNames) {
-    this.callSetsNames = callSetsNames;
-    this.callSetsToInclude = Collections.emptySet();
+    this(callSetsNames, null);
   }
 
   /** 
@@ -45,11 +45,27 @@ public class LdVariantProcessor implements Serializable {
    * 
    * @param callSetsNames The CallSets for the Variants that will be processed here.
    * @param callSetsToInclude The subset of CallSets to include for the processed LdVariants.
-   *    null indicates no filtering.
+   *    null or empty indicates no filtering.
    */
   public LdVariantProcessor(List<String> callSetsNames, Set<String> callSetsToInclude) {
-    this.callSetsNames = callSetsNames;
-    this.callSetsToInclude = callSetsToInclude;
+    int callSetsCount = 0;
+    ImmutableMap.Builder<String, Integer> callSetsToIndexBuilder = ImmutableMap.builder();
+
+    if (callSetsToInclude != null && callSetsToInclude.isEmpty()) {
+      callSetsToInclude = null;
+    }
+
+    for (String cs : callSetsNames) {
+      if (callSetsToInclude == null || callSetsToInclude.contains(cs)) {
+        callSetsToIndexBuilder.put(cs, callSetsCount++);
+      }
+    }
+
+    this.callSetsToIndex = callSetsToIndexBuilder.build();
+
+    if (callSetsToInclude != null && callSetsToIndex.size() != callSetsToInclude.size()) {
+      throw new IllegalArgumentException("All individuals could not be found in the call set.");
+    }
   }
 
   /**
@@ -62,29 +78,42 @@ public class LdVariantProcessor implements Serializable {
    * 
    * @param var Input Variant.
    * @return Converted LDVariant corresponding to var.
-   * @exception IllegalArgumentException if the CallSet does not match what this LdVariantProcessor
-   *    was initialized with. NOTE: it does not check that the number of alleles per CallSet
-   *    matches.
+   * @exception IllegalArgumentException if the CallSet does not include all the individuals
+   *    stored in callSetsToIndex. NOTE: no check that the number of alleles per CallSet
+   *    matches (there is a check that the overall number matches when doing LdVariant.compareTo).
    */
   public LdVariant convertVariant(Variant var) {
     List<VariantCall> calls = var.getCallsList();
 
+    ArrayList<List<Integer>> genotypeLists = new ArrayList<>();
     ArrayList<Integer> genotypes = new ArrayList<>();
 
-    if (callSetsNames.size() != calls.size()) {
-      throw new IllegalArgumentException("Mismatch in number of calls.");
+    for (int i = 0; i < callSetsToIndex.size(); i++) {
+      genotypeLists.add(null);
     }
 
     for (int i = 0; i < calls.size(); i++) {
       VariantCall vc = calls.get(i);
+      Integer callIndex = callSetsToIndex.get(vc.getCallSetName());
 
-      if (!callSetsNames.get(i).equals(vc.getCallSetName())) {
-        throw new IllegalArgumentException(
-            "CallSetName mismatch: " + callSetsNames.get(i) + " vs " + vc.getCallSetName());
+      if (callIndex != null) {
+        if (genotypeLists.get(callIndex) != null) {
+          throw new IllegalArgumentException(
+              "Individual " + vc.getCallSetName() + " included more than one time in call set.");
+        }
+
+        genotypeLists.set(callIndex, vc.getGenotypeList());
+      }
+    }
+
+    /* Check that we have genotypes for each individual and flatten genotypeLists into genotypes */
+    for (List<Integer> genotypeList : genotypeLists) {
+      if (genotypeList == null) {
+        throw new IllegalArgumentException("Individual missing from call set.");
       }
 
-      if (callSetsToInclude.isEmpty() || callSetsToInclude.contains(vc.getCallSetName())) {
-        genotypes.addAll(vc.getGenotypeList());
+      for (Integer genotype : genotypeList) {
+        genotypes.add(genotype);
       }
     }
 

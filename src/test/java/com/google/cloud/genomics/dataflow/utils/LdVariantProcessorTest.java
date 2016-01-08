@@ -36,7 +36,7 @@ import org.junit.rules.ExpectedException;
 @RunWith(JUnit4.class)
 public class LdVariantProcessorTest {
 
-  private Variant v1, v2, v3;
+  private Variant v1, v2, v3, v4;
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -53,20 +53,24 @@ public class LdVariantProcessorTest {
 
     v1 = Variant.newBuilder()
         .setReferenceName("chr3").setStart(10000).setEnd(10001).setReferenceBases("A").addAlternateBases("T")
-        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[0][1])).build();
+        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[1][1])).build();
 
     v2 = Variant.newBuilder()
         .setReferenceName("chr3").setStart(10001).setEnd(10002).setReferenceBases("A").addAlternateBases("T")
-        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[0][1])).build();
+        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[1][1])).build();
 
     v3 = Variant.newBuilder()
         .setReferenceName("chr3").setStart(10001).setEnd(10002).setReferenceBases("A").addAlternateBases("T")
-        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[0][1], calls[0][1])).build();
+        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[0][1])).build();
+
+    v4 = Variant.newBuilder()
+        .setReferenceName("chr3").setStart(10001).setEnd(10002).setReferenceBases("A").addAlternateBases("T")
+        .addAllCalls(Arrays.asList(calls[0][0], calls[0][1])).build();
   }
 
   @Test
   public void testLdVariantProcessor() {
-    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("0", "1", "1"));
+    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("0", "1", "11"));
 
     LdVariant lv1 = vp.convertVariant(v1);
     LdVariant lv2 = vp.convertVariant(v2);
@@ -79,18 +83,18 @@ public class LdVariantProcessorTest {
   }
 
   @Test
-  public void testCallSetSizeMismatch() {
+  public void testCallSetNameRepeated() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Mismatch in number of calls.");
-    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("", ""));
+    thrown.expectMessage("Individual 1 included more than one time in call set.");
+    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("0", "1"));
     vp.convertVariant(v3);
   }
 
   @Test
-  public void testCallSetNameMismatch() {
+  public void testCallSetMissingIndividual() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("CallSetName mismatch: A vs 0");
-    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("A", "B", "C", "D"));
-    vp.convertVariant(v3);
+    thrown.expectMessage("Individual missing from call set.");
+    LdVariantProcessor vp = new LdVariantProcessor(Arrays.asList("0", "1", "11"));
+    vp.convertVariant(v4);
   }
 }

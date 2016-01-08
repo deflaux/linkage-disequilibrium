@@ -15,14 +15,12 @@ package com.google.cloud.genomics.dataflow.utils;
 
 import com.google.cloud.genomics.dataflow.model.LdVariant;
 import com.google.cloud.genomics.dataflow.model.LdVariantInfo;
+import com.google.common.collect.ImmutableMap;
 import com.google.genomics.v1.Variant;
 import com.google.genomics.v1.VariantCall;
 
-import com.google.common.collect.ImmutableMap;
-
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -35,7 +33,7 @@ import java.util.List;
 public class LdVariantProcessor implements Serializable {
   private final ImmutableMap<String, Integer> callSetsToIndex;
 
-  /** 
+  /**
    * Returns LdVariantProcessor with filtered CallSets.
    * 
    * @param callSetsNames The CallSets for the Variants that will be processed here.
@@ -51,18 +49,18 @@ public class LdVariantProcessor implements Serializable {
   }
 
   /**
-   * Converts a Variant to an LdVariant, removing information unneeded for computing LD and 
-   * redundant between variants. 
-   
-   * The "zero" and "one" alleles are chosen as the two most used alleles for this variant after 
+   * Converts a Variant to an LdVariant, removing information unneeded for computing LD and
+   * redundant between variants.
+   * 
+   * The "zero" and "one" alleles are chosen as the two most used alleles for this variant after
    * performing filtering. The "zero" allele is the reference if the reference is amongst the top
    * two alleles and otherwise the more abundant allele.
    * 
    * @param var Input Variant.
    * @return Converted LDVariant corresponding to var.
-   * @exception IllegalArgumentException if the CallSet does not include all the individuals
-   *    stored in callSetsToIndex. NOTE: no check that the number of alleles per CallSet
-   *    matches (there is a check that the overall number matches when doing LdVariant.compareTo).
+   * @exception IllegalArgumentException if the CallSet does not include all the individuals stored
+   *            in callSetsToIndex. NOTE: no check that the number of alleles per CallSet matches
+   *            (there is a check that the overall number matches when doing LdVariant.compareTo).
    */
   public LdVariant convertVariant(Variant var) {
     List<VariantCall> calls = var.getCallsList();

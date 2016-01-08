@@ -29,10 +29,10 @@ import com.google.cloud.genomics.dataflow.functions.LdCreateVariantListsAndAssig
 import com.google.cloud.genomics.dataflow.functions.LdShardToVariantPairs;
 import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.model.LdVariant;
-import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 import com.google.cloud.genomics.dataflow.utils.GCSOutputOptions;
-import com.google.cloud.genomics.dataflow.utils.ShardOptions;
+import com.google.cloud.genomics.dataflow.utils.GenomicsOptions;
 import com.google.cloud.genomics.dataflow.utils.LdVariantProcessor;
+import com.google.cloud.genomics.dataflow.utils.ShardOptions;
 import com.google.cloud.genomics.utils.Contig;
 import com.google.cloud.genomics.utils.GenomicsUtils;
 import com.google.cloud.genomics.utils.OfflineAuth;
@@ -52,22 +52,15 @@ import java.util.List;
  * Computes linkage disequilibrium r and D' between all variants that start inside the references
  * list if they are within window of each other.
  *
- * Example call:
- * java -ea -Xbootclasspath/p:lib/alpn-boot-8.1.3.v20150130.jar \
- *   -cp target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
- *   com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \
- *   --output="gs://<PATH_TO_OUTPUT_FILE>" \
- *   --stagingLocation="gs://<YOUR_BUCKET>/staging" \
- *   --variantSetId=4252737135923902652 \
- *   --ldCutoff=0.4 \
- *   --references=20:10000000:30000000 \
- *   --window=1000000 \
- *   --basesPerShard=100000 \
- *   --callSetsToUse=HG00096,HG00097,HG00099,HG00100,HG00101,HG00102,HG00103,HG00105,HG00106,HG00107,HG00108 \
- *   --project="<YOUR_PROJECT_ID>" \
- *   --runner=DataflowPipelineRunner \
- *   --zone=us-east1-c \
- *   --numWorkers=10
+ * Example call: java -ea -Xbootclasspath/p:lib/alpn-boot-8.1.3.v20150130.jar \ -cp
+ * target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
+ * com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \ --output=
+ * "gs://<PATH_TO_OUTPUT_FILE>" \ --stagingLocation="gs://<YOUR_BUCKET>/staging" \
+ * --variantSetId=4252737135923902652 \ --ldCutoff=0.4 \ --references=20:10000000:30000000 \
+ * --window=1000000 \ --basesPerShard=100000 \
+ * --callSetsToUse=HG00096,HG00097,HG00099,HG00100,HG00101,HG00102,HG00103,HG00105,HG00106,HG00107,
+ * HG00108 \ --project="<YOUR_PROJECT_ID>" \ --runner=DataflowPipelineRunner \ --zone=us-east1-c \
+ * --numWorkers=10
  * 
  * For output format, see LdValue.toString().
  */
@@ -109,7 +102,7 @@ public class LinkageDisequilibrium {
   }
 
   /**
-   * Takes size of each reference and string indicating regions and outputs the corresponding 
+   * Takes size of each reference and string indicating regions and outputs the corresponding
    * Contig(s).
    * 
    * @param refBounds List indicating the size of each reference (chromosome).
@@ -182,8 +175,8 @@ public class LinkageDisequilibrium {
     Collections.shuffle(shards);
 
     List<String> callSetsNames = options.getCallSetsToUse().length() > 0
-            ? Arrays.asList(options.getCallSetsToUse().split(","))
-            : GenomicsUtils.getCallSetsNames(options.getVariantSetId(), auth);
+        ? Arrays.asList(options.getCallSetsToUse().split(","))
+        : GenomicsUtils.getCallSetsNames(options.getVariantSetId(), auth);
 
     LdVariantProcessor ldVariantProcessor = new LdVariantProcessor(callSetsNames);
 
@@ -197,8 +190,8 @@ public class LinkageDisequilibrium {
             .of(new LdCreateVariantListsAndAssign(auth, basesPerShard, shardsPerWindow,
                 ldVariantProcessor)))
         .apply(GroupByKey.<String, KV<Boolean, List<LdVariant>>>create())
-        .apply(ParDo.named("LdShardToVariantPairs")
-            .of(new LdShardToVariantPairs(options.getWindow())))
+        .apply(
+            ParDo.named("LdShardToVariantPairs").of(new LdShardToVariantPairs(options.getWindow())))
         .apply(ParDo.named("ComputeLd").of(new DoFn<KV<LdVariant, LdVariant>, LdValue>() {
           @Override
           public void processElement(ProcessContext c) {

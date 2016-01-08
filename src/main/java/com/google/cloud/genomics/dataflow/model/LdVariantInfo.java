@@ -37,23 +37,16 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   /**
    * Initializes LdVariantInfo from input Variant.
    *
-   * @param var Variant to use to obtain reference name, start, end, id, rsid, etc from.
-   *            The first value in the name field is used as the rsid (blank of none available).
+   * @param var Variant to use to obtain reference name, start, end, id, rsid, etc from. The first
+   *        value in the name field is used as the rsid (blank of none available).
    * @param zeroAllele Allele to use for zero in correlation (0 is reference)
    * @param oneAllele Allele to use for one in correlation
    */
   public LdVariantInfo(Variant var, int zeroAllele, int oneAllele) {
-    this(
-      var.getReferenceName(),
-      var.getStart(),
-      var.getEnd(),
-      var.getId(),
-      var.getNamesCount() >= 1 ? var.getNames(0) : "",
-      var.getAlternateBasesCount(),
-      zeroAllele,
-      zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
-      oneAllele,
-      oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
+    this(var.getReferenceName(), var.getStart(), var.getEnd(), var.getId(),
+        var.getNamesCount() >= 1 ? var.getNames(0) : "", var.getAlternateBasesCount(), zeroAllele,
+        zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
+        oneAllele, oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
   }
 
   public LdVariantInfo(String referenceName, long start, long end, String variantId, String rsIds,
@@ -101,7 +94,7 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
 
   /**
    * Converts LdVariantInfo to a string.
-   * 
+   *
    * Output format (separated by commas)
    * 1. chromosome
    * 2. start position (0-based inclusive)
@@ -113,14 +106,14 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
    * 8. The bases corresponding to the allele represented as 1 in the LD calculation
    */
   public String toString() {
-    return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, variantId, rsIds, alternateBasesCount,
-        zeroAlleleBases, oneAlleleBases);
+    return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, variantId, rsIds,
+        alternateBasesCount, zeroAlleleBases, oneAlleleBases);
   }
 
   public int compareTo(LdVariantInfo that) {
     return ComparisonChain.start().compare(this.referenceName, that.referenceName)
-        .compare(this.start, that.start).compare(this.end, that.end).compare(this.variantId, that.variantId)
-        .result();
+        .compare(this.start, that.start).compare(this.end, that.end)
+        .compare(this.variantId, that.variantId).result();
   }
 
   public boolean equals(LdVariantInfo that) {

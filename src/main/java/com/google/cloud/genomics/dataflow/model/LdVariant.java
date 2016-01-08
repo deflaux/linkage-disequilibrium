@@ -68,9 +68,9 @@ public class LdVariant implements java.io.Serializable {
   }
 
   /**
-   * Computes LD between this and that variant. Return zero for both r and D' if the correlation 
-   * cannot be computed (note: this can happen even if hasVariation if UNKNOWN values in one lead
-   * to insufficient variation in the other).
+   * Computes LD between this and that variant. Return zero for both r and D' if the correlation
+   * cannot be computed (note: this can happen even if hasVariation if UNKNOWN values in one lead to
+   * insufficient variation in the other).
    */
   public LdValue computeLd(LdVariant that) {
     assert this.genotypesCount == that.genotypesCount;
@@ -92,12 +92,12 @@ public class LdVariant implements java.io.Serializable {
     long a = oneInThis.cardinality();
     long b = oneInThat.cardinality();
 
-    if (n == 0 || a == 0 || b == 0 || n==a || n==b) {
+    if (n == 0 || a == 0 || b == 0 || n == a || n == b) {
       return new LdValue(this.info, that.info, (int) n, (int) a, (int) b, (int) ab, 0.0, 0.0);
     }
 
     // TODO: Investigate the numerical stability of this computational (everything up until here
-    //       should be exact.
+    // should be exact.
     double top = (double) (n * ab - a * b);
     double r = top / Math.sqrt(a * (n - a) * b * (n - b));
     double dPrime =

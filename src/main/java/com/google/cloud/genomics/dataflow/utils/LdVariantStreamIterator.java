@@ -30,12 +30,12 @@ import java.util.PriorityQueue;
  * Wrapper for VariantStreamIterator.
  *
  * <ul>
- *    <li> Ensures that variants come from the same reference in sorted order (as indicated by
- *         LdVariantInfo.compareTo). Note: input variants from VariantStreamIterator are sorted by
- *         start only.
- *    <li> Rather than return a list of variants per next() call, returns one at a time.
- *    <li> Discards LdVariants that do not have variation (and thus have undefined LD to any other
- *         variant.
+ * <li>Ensures that variants come from the same reference in sorted order (as indicated by
+ * LdVariantInfo.compareTo). Note: input variants from VariantStreamIterator are sorted by start
+ * only.
+ * <li>Rather than return a list of variants per next() call, returns one at a time.
+ * <li>Discards LdVariants that do not have variation (and thus have undefined LD to any other
+ * variant.
  * </ul>
  */
 public class LdVariantStreamIterator implements Iterator<LdVariant> {
@@ -57,8 +57,8 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   public LdVariantStreamIterator(StreamVariantsRequest request, OfflineAuth auth,
       LdVariantProcessor ldVariantProcessor)
           throws java.io.IOException, java.security.GeneralSecurityException {
-    streamIter = VariantStreamIterator.enforceShardBoundary(
-        auth, request, ShardBoundary.Requirement.OVERLAPS, null);
+    streamIter = VariantStreamIterator.enforceShardBoundary(auth, request,
+        ShardBoundary.Requirement.OVERLAPS, null);
     referenceName = request.getReferenceName();
     this.ldVariantProcessor = ldVariantProcessor;
   }

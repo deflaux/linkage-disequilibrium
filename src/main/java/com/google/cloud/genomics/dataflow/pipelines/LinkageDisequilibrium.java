@@ -38,12 +38,12 @@ import com.google.cloud.genomics.utils.GenomicsUtils;
 import com.google.cloud.genomics.utils.OfflineAuth;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.genomics.v1.StreamVariantsRequest;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -159,7 +159,6 @@ public class LinkageDisequilibrium {
         convertStringToContigs(GenomicsUtils.getReferenceBounds(options.getVariantSetId(), auth),
             options.isAllReferences() ? null : options.getReferences());
 
-    ImmutableSet<String> callSetsToUse = ImmutableSet.copyOf(options.getCallSetsToUse().split(","));
 
     final double ldCutoff = options.getLdCutoff();
     final long basesPerShard = options.getBasesPerShard();
@@ -182,10 +181,11 @@ public class LinkageDisequilibrium {
     // shuffle to spread out requests.
     Collections.shuffle(shards);
 
-    LdVariantProcessor ldVariantProcessor =
-        new LdVariantProcessor(
-            GenomicsUtils.getCallSetsNames(options.getVariantSetId(), auth), 
-            callSetsToUse);
+    List<String> callSetsNames = options.getCallSetsToUse().length() > 0
+            ? Arrays.asList(options.getCallSetsToUse().split(","))
+            : GenomicsUtils.getCallSetsNames(options.getVariantSetId(), auth);
+
+    LdVariantProcessor ldVariantProcessor = new LdVariantProcessor(callSetsNames);
 
     Pipeline p = Pipeline.create(options);
     p.getCoderRegistry().registerCoder(StreamVariantsRequest.class,

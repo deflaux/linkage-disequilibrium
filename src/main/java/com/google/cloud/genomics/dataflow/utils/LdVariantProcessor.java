@@ -24,7 +24,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Converts Variants into LdVariants. Ensures that Variants have the expected callSets. For
@@ -36,36 +35,19 @@ import java.util.Set;
 public class LdVariantProcessor implements Serializable {
   private final ImmutableMap<String, Integer> callSetsToIndex;
 
-  public LdVariantProcessor(List<String> callSetsNames) {
-    this(callSetsNames, null);
-  }
-
   /** 
    * Returns LdVariantProcessor with filtered CallSets.
    * 
    * @param callSetsNames The CallSets for the Variants that will be processed here.
-   * @param callSetsToInclude The subset of CallSets to include for the processed LdVariants.
-   *    null or empty indicates no filtering.
    */
-  public LdVariantProcessor(List<String> callSetsNames, Set<String> callSetsToInclude) {
-    int callSetsCount = 0;
+  public LdVariantProcessor(List<String> callSetsNames) {
     ImmutableMap.Builder<String, Integer> callSetsToIndexBuilder = ImmutableMap.builder();
 
-    if (callSetsToInclude != null && callSetsToInclude.isEmpty()) {
-      callSetsToInclude = null;
-    }
-
-    for (String cs : callSetsNames) {
-      if (callSetsToInclude == null || callSetsToInclude.contains(cs)) {
-        callSetsToIndexBuilder.put(cs, callSetsCount++);
-      }
+    for (int i = 0; i < callSetsNames.size(); i++) {
+      callSetsToIndexBuilder.put(callSetsNames.get(i), i);
     }
 
     this.callSetsToIndex = callSetsToIndexBuilder.build();
-
-    if (callSetsToInclude != null && callSetsToIndex.size() != callSetsToInclude.size()) {
-      throw new IllegalArgumentException("All individuals could not be found in the call set.");
-    }
   }
 
   /**

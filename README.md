@@ -61,7 +61,7 @@ mvn package
 
 Now, pipelines can be run on Google Compute Engine using the example commands
 listed within the pipeline files themselves (see, for example,
-`src/main/java/com/google/cloud/genomics/dataflow/pipelines/WriteLdBigtable.java`).
+[WriteLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/WriteLdBigtable.java)).
 
 ## Linkage disequilibrium calculation pipeline
 Because calculation of LD can be performed independently for all pairs of
@@ -73,7 +73,7 @@ Each LD result is represented as a comma-separated line with 22 entries. Each
 variant is represented by eight values:
 
 1. chromosome
-1. start position (0-based half-open, like 
+1. start position (0-based half-open, like
    [UCSC BED format](https://genome.ucsc.edu/FAQ/FAQformat.html#format1))
 1. end position (0-based half open, like UCSC BED format)
 1. Google Genomics variant ID
@@ -143,8 +143,8 @@ script for loading from CSV is available at
 [load_data_from_csv.py](https://github.com/GoogleCloudPlatform/python-docs-samples/blob/master/bigquery/api/load_data_from_csv.py).
 When using that script, the
 [schema](https://cloud.google.com/bigquery/docs/reference/v2/tables) for the
-table of LD results is available in this repository at
-`schema/ld_bigquery_schema_fields.txt`.
+table of LD results is available in this repository in the
+[ld_bigquery_schema_fields.txt](schema/ld_bigquery_schema_fields.txt) file.
 
 Consequently, LD data can be loaded into a BigQuery table with the following
 code snippet:
@@ -171,17 +171,22 @@ are sorted by the location of query variants. This key design allows efficient
 access to all LD results for a single variant or a single region of the genome.
 
 An example command to run the pipeline is given within the
-`WriteLdBigtable.java` source code itself.
+[WriteLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/WriteLdBigtable.java)
+source code itself.
 
 ## Querying LD calculations stored in BigTable
 Once a BigTable storing LD data has been created, a mechanism for accessing the
-results must be created. The `QueryLdBigtable.java` pipeline provides an example
-in which Dataflow is used to read a subset of data from an LD BigTable and write
-the results to GCS in the same format as it was originally written by the
-`LinkageDisequilibrium.java` pipeline.
+results must be created. The
+[QueryLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/QueryLdBigtable.java)
+pipeline provides an example in which Dataflow is used to read a subset of data
+from an LD BigTable and write the results to GCS in the same format as it was
+originally written by the
+[LinkageDisequilibrium.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/LinkageDisequilibrium.java)
+pipeline.
 
 An example command to run the pipeline is given within the
-`QueryLdBigtable.java` source code itself.
+[QueryLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/QueryLdBigtable.java)
+source code itself.
 
 ## Publicly-available LD datasets
 Coming soon...

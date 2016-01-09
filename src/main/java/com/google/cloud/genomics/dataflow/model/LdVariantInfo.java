@@ -43,9 +43,12 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
    * @param oneAllele Allele to use for one in correlation
    */
   public LdVariantInfo(Variant var, int zeroAllele, int oneAllele) {
-    this(var.getReferenceName(), var.getStart(), var.getEnd(), var.getId(),
-        var.getNamesCount() >= 1 ? var.getNames(0) : "", var.getAlternateBasesCount(), zeroAllele,
-        zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
+    this(
+        var.getReferenceName(), var.getStart(), var.getEnd(),
+        var.getId(),
+        String.join(";", var.getNamesList()),
+        var.getAlternateBasesCount(),
+        zeroAllele, zeroAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(zeroAllele - 1),
         oneAllele, oneAllele == 0 ? var.getReferenceBases() : var.getAlternateBases(oneAllele - 1));
   }
 

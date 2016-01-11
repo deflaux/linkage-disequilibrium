@@ -19,7 +19,7 @@
   },
   {
     "name": "qid",
-    "type": "integer",
+    "type": "string",
     "description": "The Cloud Genomics ID of the query variant",
     "mode": "required"
   },
@@ -67,7 +67,7 @@
   },
   {
     "name": "tid",
-    "type": "integer",
+    "type": "string",
     "description": "The Cloud Genomics ID of the target variant",
     "mode": "required"
   },

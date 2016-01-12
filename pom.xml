@@ -33,6 +33,9 @@
       <artifactId>google-genomics-dataflow</artifactId>
       <version>${genomics.dataflow.version}</version>
     </dependency>
+    <!-- bigtable dependency needs to be last in order to have 
+        LinkageDisequilibrium compile and test, see:
+        https://github.com/googlegenomics/linkage-disequilibrium/pull/3#issuecomment-170296437 -->
     <dependency>
       <groupId>com.google.cloud.bigtable</groupId>
       <artifactId>bigtable-hbase-dataflow</artifactId>

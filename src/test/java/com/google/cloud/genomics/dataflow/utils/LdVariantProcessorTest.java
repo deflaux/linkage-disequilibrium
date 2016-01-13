@@ -48,18 +48,25 @@ public class LdVariantProcessorTest {
     }
 
     v1 = Variant.newBuilder().setReferenceName("chr3").setStart(10000).setEnd(10001)
+        .setId("v1")
         .setReferenceBases("A").addAlternateBases("T")
         .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[1][1])).build();
 
     v2 = Variant.newBuilder().setReferenceName("chr3").setStart(10001).setEnd(10002)
+        .setId("v2")
+        .addNames("rsidv2")
         .setReferenceBases("A").addAlternateBases("T")
         .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[1][1])).build();
 
     v3 = Variant.newBuilder().setReferenceName("chr3").setStart(10001).setEnd(10002)
+        .setId("v3")
+        .addNames("rsidv3a").addNames("rsidv3b")
         .setReferenceBases("A").addAlternateBases("T")
         .addAllCalls(Arrays.asList(calls[0][0], calls[0][1], calls[0][1])).build();
 
     v4 = Variant.newBuilder().setReferenceName("chr3").setStart(10001).setEnd(10002)
+        .setId("v4")
+        .addNames("rsidv4a").addNames("rsidv4b").addNames("rsidv4c")
         .setReferenceBases("A").addAlternateBases("T")
         .addAllCalls(Arrays.asList(calls[0][0], calls[0][1])).build();
   }

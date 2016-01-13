@@ -35,7 +35,7 @@ public class LdVariantProcessor implements Serializable {
 
   /**
    * Returns LdVariantProcessor with filtered CallSets.
-   * 
+   *
    * @param callSetsNames The CallSets for the Variants that will be processed here.
    */
   public LdVariantProcessor(List<String> callSetsNames) {
@@ -51,11 +51,11 @@ public class LdVariantProcessor implements Serializable {
   /**
    * Converts a Variant to an LdVariant, removing information unneeded for computing LD and
    * redundant between variants.
-   * 
+   *
    * The "zero" and "one" alleles are chosen as the two most used alleles for this variant after
    * performing filtering. The "zero" allele is the reference if the reference is amongst the top
    * two alleles and otherwise the more abundant allele.
-   * 
+   *
    * @param var Input Variant.
    * @return Converted LDVariant corresponding to var.
    * @exception IllegalArgumentException if the CallSet does not include all the individuals stored
@@ -136,7 +136,7 @@ public class LdVariantProcessor implements Serializable {
           : (genotypes.get(i) == oneAllele) ? LdVariant.Genotype.ONE : LdVariant.Genotype.UNKNOWN;
     }
 
-    return new LdVariant(new LdVariantInfo(var, zeroAllele, oneAllele), genotypesConv);
+    return new LdVariant(LdVariantInfo.fromVariant(var, zeroAllele, oneAllele), genotypesConv);
   }
 }
 

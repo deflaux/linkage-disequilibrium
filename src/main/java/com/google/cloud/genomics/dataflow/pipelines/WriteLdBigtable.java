@@ -24,7 +24,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
-import com.google.cloud.genomics.dataflow.model.LdResult;
+import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.utils.LdBigtableUtils;
 
 import org.apache.hadoop.hbase.client.Mutation;
@@ -78,21 +78,21 @@ public class WriteLdBigtable {
     void setLdInput(String ldInput);
   }
 
-  // A DoFn that reads a String LdResult and writes it to Cloud BigTable.
+  // A DoFn that reads a String LdValue and writes it to Cloud BigTable.
   static final DoFn<String, Mutation> MUTATION_TRANSFORM = new DoFn<String, Mutation>() {
 
     @Override
     public void processElement(DoFn<String, Mutation>.ProcessContext c) throws Exception {
-      LdResult entry = LdResult.fromLine(c.element());
+      LdValue entry = LdValue.fromLine(c.element());
       byte[] key = LdBigtableUtils.key(
-          entry.queryChrom(),
-          entry.queryStart(),
-          entry.queryZeroAllele(),
-          entry.queryOneAllele(),
-          entry.targetChrom(),
-          entry.targetStart(),
-          entry.targetZeroAllele(),
-          entry.targetOneAllele());
+          entry.getQuery().getReferenceName(),
+          entry.getQuery().getStart(),
+          entry.getQuery().getZeroAlleleBases(),
+          entry.getQuery().getOneAlleleBases(),
+          entry.getTarget().getReferenceName(),
+          entry.getTarget().getStart(),
+          entry.getTarget().getZeroAlleleBases(),
+          entry.getTarget().getOneAlleleBases());
 
       c.output(
           new Put(key)
@@ -106,8 +106,8 @@ public class WriteLdBigtable {
   /**
    * <p>Creates a dataflow pipeline that creates the following chain:</p>
    * <ol>
-   *   <li> Reads LdResult lines from Google Cloud Storage into the Pipeline
-   *   <li> Creates Puts from each of the LdResult lines
+   *   <li> Reads LdValue lines from Google Cloud Storage into the Pipeline
+   *   <li> Creates Puts from each of the LdValue lines
    *   <li> Inserts the Puts into an existing Cloud BigTable
    * </ol>
    *

@@ -23,43 +23,43 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class LdVariantTest {
-  LdVariantInfo info = new LdVariantInfo("", 0, 0, "", "", 0, 0, "", 0, "");
+  private final LdVariantInfo INFO = new LdVariantInfo("chr1", 0, 1, "2", "rs1", 1, "A", "C");
 
   @Test
   public void testHasVariation() {
-    Assert.assertFalse((new LdVariant(info, new Genotype[] {})).hasVariation());
+    Assert.assertFalse((new LdVariant(INFO, new Genotype[] {})).hasVariation());
 
-    Assert.assertFalse((new LdVariant(info, new Genotype[] {Genotype.UNKNOWN})).hasVariation());
+    Assert.assertFalse((new LdVariant(INFO, new Genotype[] {Genotype.UNKNOWN})).hasVariation());
 
-    Assert.assertFalse((new LdVariant(info, new Genotype[] {Genotype.ONE})).hasVariation());
+    Assert.assertFalse((new LdVariant(INFO, new Genotype[] {Genotype.ONE})).hasVariation());
 
     Assert.assertFalse(
-        (new LdVariant(info, new Genotype[] {Genotype.ONE, Genotype.ONE})).hasVariation());
+        (new LdVariant(INFO, new Genotype[] {Genotype.ONE, Genotype.ONE})).hasVariation());
 
     Assert.assertTrue(
-        (new LdVariant(info, new Genotype[] {Genotype.ONE, Genotype.ZERO, Genotype.UNKNOWN}))
+        (new LdVariant(INFO, new Genotype[] {Genotype.ONE, Genotype.ZERO, Genotype.UNKNOWN}))
             .hasVariation());
 
     Assert.assertFalse(
-        (new LdVariant(info, new Genotype[] {Genotype.ONE, Genotype.ONE, Genotype.UNKNOWN}))
+        (new LdVariant(INFO, new Genotype[] {Genotype.ONE, Genotype.ONE, Genotype.UNKNOWN}))
             .hasVariation());
 
     Assert.assertTrue(
-        (new LdVariant(info, new Genotype[] {Genotype.ZERO, Genotype.UNKNOWN, Genotype.ONE}))
+        (new LdVariant(INFO, new Genotype[] {Genotype.ZERO, Genotype.UNKNOWN, Genotype.ONE}))
             .hasVariation());
 
     Assert.assertFalse(
-        (new LdVariant(info, new Genotype[] {Genotype.ZERO, Genotype.UNKNOWN, Genotype.ZERO}))
+        (new LdVariant(INFO, new Genotype[] {Genotype.ZERO, Genotype.UNKNOWN, Genotype.ZERO}))
             .hasVariation());
 
     Assert.assertFalse(
-        (new LdVariant(info, new Genotype[] {Genotype.UNKNOWN, Genotype.UNKNOWN, Genotype.ZERO}))
+        (new LdVariant(INFO, new Genotype[] {Genotype.UNKNOWN, Genotype.UNKNOWN, Genotype.ZERO}))
             .hasVariation());
   }
 
   private double[] getDPrimeAndR(Genotype[] a, Genotype[] b) {
-    LdVariant varA = new LdVariant(info, a);
-    LdVariant varB = new LdVariant(info, b);
+    LdVariant varA = new LdVariant(INFO, a);
+    LdVariant varB = new LdVariant(INFO, b);
 
     LdValue ld = varA.computeLd(varB);
 

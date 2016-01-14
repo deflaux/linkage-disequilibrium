@@ -27,7 +27,7 @@
     "name": "qname",
     "type": "string",
     "description": "A semicolon-delimited list of names for the query variant",
-    "mode": "required"
+    "mode": "nullable"
   },
   {
     "name": "qnumalt",
@@ -75,7 +75,7 @@
     "name": "tname",
     "type": "string",
     "description": "A semicolon-delimited list of names for the target variant",
-    "mode": "required"
+    "mode": "nullable"
   },
   {
     "name": "tnumalt",

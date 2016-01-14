@@ -13,6 +13,8 @@
  */
 package com.google.cloud.genomics.dataflow.model;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Preconditions;
 import java.io.Serializable;
 
 /**
@@ -81,6 +83,45 @@ public class LdValue implements Serializable {
   }
 
   /**
+   * Returns an LdValue from its String representation.
+   */
+  public static LdValue fromLine(String line) {
+    String[] tokens = line.trim().split(",");
+    Preconditions.checkArgument(
+        tokens.length == 22,
+        "Invalid LdValue line has %s columns (not 22): %s",
+        tokens.length,
+        line);
+    LdVariantInfo query = new LdVariantInfo(
+        tokens[0],
+        Integer.parseInt(tokens[1]),
+        Integer.parseInt(tokens[2]),
+        tokens[3],
+        tokens[4],
+        Integer.parseInt(tokens[5]),
+        tokens[6],
+        tokens[7]);
+    LdVariantInfo target = new LdVariantInfo(
+        tokens[8],
+        Integer.parseInt(tokens[9]),
+        Integer.parseInt(tokens[10]),
+        tokens[11],
+        tokens[12],
+        Integer.parseInt(tokens[13]),
+        tokens[14],
+        tokens[15]);
+    return new LdValue(
+        query,
+        target,
+        Integer.parseInt(tokens[16]),
+        Integer.parseInt(tokens[17]),
+        Integer.parseInt(tokens[18]),
+        Integer.parseInt(tokens[19]),
+        Double.parseDouble(tokens[20]),
+        Double.parseDouble(tokens[21]));
+  }
+
+  /**
    * Converts this LdValue to a string, using the following format (separated by commas):
    *
    * 1-8. Properties of query variant (see LdVariantInfo.toString)
@@ -93,8 +134,16 @@ public class LdValue implements Serializable {
    * 22. D'
    */
   public String toString() {
-    return String.format("%s,%s,%d,%d,%d,%d,%f,%f", query.toString(), target.toString(), compCount,
-        queryOneAlleleCount, targetOneAlleleCount, queryAndTargetOneAlleleCount, r, dPrime);
+    return Joiner.on(",")
+        .join(
+            query.toString(),
+            target.toString(),
+            Integer.toString(compCount),
+            Integer.toString(queryOneAlleleCount),
+            Integer.toString(targetOneAlleleCount),
+            Integer.toString(queryAndTargetOneAlleleCount),
+            // TODO: Consider switching to Double.toString for improved precision.
+            String.format("%f", r),
+            String.format("%f", dPrime));
   }
 }
-

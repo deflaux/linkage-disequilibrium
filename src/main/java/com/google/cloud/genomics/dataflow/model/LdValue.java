@@ -142,8 +142,8 @@ public class LdValue implements Serializable {
             Integer.toString(queryOneAlleleCount),
             Integer.toString(targetOneAlleleCount),
             Integer.toString(queryAndTargetOneAlleleCount),
-            Double.toString(r),
-            Double.toString(dPrime));
+            // TODO: Consider switching to Double.toString for improved precision.
+            String.format("%f", r),
+            String.format("%f", dPrime));
   }
 }
-

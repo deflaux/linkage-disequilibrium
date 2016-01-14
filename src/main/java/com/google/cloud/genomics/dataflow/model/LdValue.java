@@ -30,6 +30,19 @@ public class LdValue implements Serializable {
   private final double r;
   private final double dPrime;
 
+  /**
+   * Constructor for an LdValue object.
+   *
+   * @param query An LdVariantInfo object representing the query variant
+   * @param target an LdVariantInfo object representing the target variant
+   * @param compCount the total number of chromosomes used in the LD calculations
+   * @param queryOneAlleleCount the number of chromosomes with the allele coded as 1 in the query
+   * @param targetOneAlleleCount the number of chromosomes with the allele coded as 1 in the target
+   * @param queryAndTargetOneAlleleCount the number of chromosomes with both query and target 1
+   *        alleles
+   * @param r the allelic correlation between the query and target variants
+   * @param dPrime the D' measure of LD between the query and target variants
+   */
   public LdValue(LdVariantInfo query, LdVariantInfo target, int compCount, int queryOneAlleleCount,
       int targetOneAlleleCount, int queryAndTargetOneAlleleCount, double r, double dPrime) {
     this.query = query;
@@ -42,40 +55,82 @@ public class LdValue implements Serializable {
     this.dPrime = dPrime;
   }
 
+  /**
+   * Returns the query variant.
+   *
+   * @return the LdVariantInfo of the query variant
+   */
   public LdVariantInfo getQuery() {
     return query;
   }
 
+  /**
+   * Returns the target variant.
+   *
+   * @return the LdVariantInfo of the target variant
+   */
   public LdVariantInfo getTarget() {
     return target;
   }
 
+  /**
+   * Returns the total number of chromosomes used in the LD calculation.
+   *
+   * @return the total number of chromosomes used in the LD calculation
+   */
   public int getCompCount() {
     return compCount;
   }
 
+  /**
+   * Returns the number of chromosomes containing the "1" allele in the query variant.
+   *
+   * @return the number of 1 alleles in the query variant
+   */
   public int getQueryOneAlleleCount() {
     return queryOneAlleleCount;
   }
 
+  /**
+   * Returns the number of chromosomes containing the "1" allele in the target variant.
+   *
+   * @return the number of 1 alleles in the target variant
+   */
   public int getTargetOneAlleleCount() {
     return targetOneAlleleCount;
   }
 
+  /**
+   * Returns the number of chromosomes containing the "1" allele in both variants.
+   *
+   * @return the number of chromosomes with 1 alleles in both query and target variants
+   */
   public int getQueryAndTargetOneAlleleCount() {
     return queryAndTargetOneAlleleCount;
   }
 
+  /**
+   * Returns the allelic correlation between the query and target variants.
+   *
+   * @return the allelic correlation between the query and target variants
+   */
   public double getR() {
     return r;
   }
 
+  /**
+   * Returns the D' measure of LD between the query and target variants.
+   *
+   * @return the D' measure of LD between the query and target variants
+   */
   public double getDPrime() {
     return dPrime;
   }
 
   /**
-   * Returns an LdValue with the query and target reversed.
+   * Returns an LdValue object with the query and target variants reversed.
+   *
+   * @return an LdValue object with the query and target variants reversed
    */
   public LdValue reverse() {
     return new LdValue(target, query, compCount, targetOneAlleleCount, queryOneAlleleCount,
@@ -84,6 +139,9 @@ public class LdValue implements Serializable {
 
   /**
    * Returns an LdValue from its String representation.
+   *
+   * @param line the String line representing the LdValue
+   * @return an LdValue object encoded by the line
    */
   public static LdValue fromLine(String line) {
     String[] tokens = line.trim().split(",");
@@ -122,9 +180,11 @@ public class LdValue implements Serializable {
   }
 
   /**
-   * Converts this LdValue to a string, using the following format (separated by commas):
+   * Returns a String representation of this LdValue object.
    *
-   * 1-8. Properties of query variant (see LdVariantInfo.toString)
+   * <p>The String representation is a single line containing the following comma-separated values:
+   *
+   * Values 1-8. Properties of query variant (see LdVariantInfo.toString)
    * 9-16. Properties of target variant
    * 17. Number of chromosomes used in comparison
    * 18. Number of chromosomes used in comparison with one allele for query
@@ -132,8 +192,11 @@ public class LdValue implements Serializable {
    * 20. Number of chromosomes used in comparison with one allele for both query and target
    * 21. r
    * 22. D'
+   *
+   * @return a String representing this LdValue object
    */
   public String toString() {
+    // NOTE: This format must be kept in sync with the LdValue.fromLine static factory method.
     return Joiner.on(",")
         .join(
             query.toString(),

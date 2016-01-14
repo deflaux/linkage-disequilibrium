@@ -34,6 +34,15 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
 
   /**
    * Constructor for information about an LD variant.
+   *
+   * @param referenceName the chromosome on which the variant resides
+   * @param start the start position of the variant, in one-based full-closed coordinates
+   * @param end the end position of the variant, in one-based full-closed coordinates
+   * @param variantId the Google Genomics ID of the variant
+   * @param rsIds a String of semicolon-delimited rsids of the variant
+   * @param alternateBasesCount the number of alternate alleles known for the variant
+   * @param zeroAlleleBases the basepairs in the allele coded as 0
+   * @param oneAlleleBases the basepairs in the allele coded as 1
    */
   public LdVariantInfo(String referenceName, int start, int end, String variantId, String rsIds,
       int alternateBasesCount, String zeroAlleleBases, String oneAlleleBases) {
@@ -76,6 +85,7 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
    *        provided the name is the empty string.
    * @param zeroAllele Allele to use for zero in correlation (0 is reference)
    * @param oneAllele Allele to use for one in correlation
+   * @return an LdVariantInfo representing the input Variant and the specified alleles
    */
   public static LdVariantInfo fromVariant(Variant var, int zeroAllele, int oneAllele) {
     Preconditions.checkArgument(
@@ -128,9 +138,9 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
   }
 
   /**
-   * Converts LdVariantInfo to a string.
+   * Returns a String representation of an LdVariantInfo object.
    *
-   * Output format (separated by commas)
+   * <p>Output format (separated by commas)
    * 1. chromosome
    * 2. start position (0-based inclusive)
    * 3. end position (0-based exclusive)
@@ -139,6 +149,8 @@ public class LdVariantInfo implements Serializable, Comparable<LdVariantInfo> {
    * 6. The number of alternative alleles
    * 7. The bases corresponding to the allele represented as 0 in the LD calculation
    * 8. The bases corresponding to the allele represented as 1 in the LD calculation
+   *
+   * @return a String representation of this LdVariantInfo
    */
   public String toString() {
     return String.format("%s,%d,%d,%s,%s,%d,%s,%s", referenceName, start, end, variantId, rsIds,

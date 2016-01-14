@@ -62,15 +62,15 @@ import org.apache.hadoop.hbase.util.Bytes;
  *   -cp target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
  *   com.google.cloud.genomics.dataflow.pipelines.QueryLdBigtable \
  *   --runner=BlockingDataflowPipelineRunner \
- *   --project=<YOUR_PROJECT_ID> \
- *   --stagingLocation="gs://<YOUR_BUCKET>/staging" \
+ *   --project=YOUR_PROJECT_ID \
+ *   --stagingLocation="gs://YOUR_BUCKET/staging" \
  *   --numWorkers=10 \
- *   --bigtableProjectId=<YOUR_BIGTABLE_PROJECT_ID> \
- *   --bigtableClusterId=<YOUR_BIGTABLE_CLUSTER_ID> \
- *   --bigtableZoneId=<YOUR_BIGTABLE_ZONE> \
- *   --bigtableTableId=<YOUR_BIGTABLE_TABLE_ID> \
+ *   --bigtableProjectId=YOUR_BIGTABLE_PROJECT_ID \
+ *   --bigtableClusterId=YOUR_BIGTABLE_CLUSTER_ID \
+ *   --bigtableZoneId=YOUR_BIGTABLE_ZONE \
+ *   --bigtableTableId=YOUR_BIGTABLE_TABLE_ID \
  *   --queryRange="22:10-50000000" \
- *   --resultLocation="gs://<PATH_TO_OUTPUT_FILE>"
+ *   --resultLocation="gs://PATH_TO_OUTPUT_FILE"
  */
 public class QueryLdBigtable {
 

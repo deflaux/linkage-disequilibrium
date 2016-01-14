@@ -54,14 +54,14 @@ import org.apache.hadoop.hbase.util.Bytes;
  *   -cp target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
  *   com.google.cloud.genomics.dataflow.pipelines.WriteLdBigtable \
  *   --runner=BlockingDataflowPipelineRunner \
- *   --project=<YOUR_PROJECT_ID> \
- *   --stagingLocation="gs://<YOUR_BUCKET>/staging" \
+ *   --project=YOUR_PROJECT_ID \
+ *   --stagingLocation="gs://YOUR_BUCKET/staging" \
  *   --numWorkers=10 \
- *   --bigtableProjectId=<YOUR_BIGTABLE_PROJECT_ID> \
- *   --bigtableClusterId=<YOUR_BIGTABLE_CLUSTER_ID> \
- *   --bigtableZoneId=<YOUR_BIGTABLE_ZONE> \
- *   --bigtableTableId=<YOUR_BIGTABLE_TABLE_ID> \
- *   --ldInput="gs://<PATH_TO_DIR_WITH_LD_DATA>/*"
+ *   --bigtableProjectId=YOUR_BIGTABLE_PROJECT_ID \
+ *   --bigtableClusterId=YOUR_BIGTABLE_CLUSTER_ID \
+ *   --bigtableZoneId=YOUR_BIGTABLE_ZONE \
+ *   --bigtableTableId=YOUR_BIGTABLE_TABLE_ID \
+ *   --ldInput="gs://PATH_TO_DIR_WITH_LD_DATA/*"
  */
 public class WriteLdBigtable {
 

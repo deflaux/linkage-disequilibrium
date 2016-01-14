@@ -28,7 +28,7 @@ import org.junit.runners.JUnit4;
 public class LdValueTest {
   private static LdVariantInfo QUERY = new LdVariantInfo("chr2", 1, 2, "i1", "rsid", 1, "A", "C");
   private static LdVariantInfo TARGET = new LdVariantInfo("chr2", 8, 9, "i2", "", 1, "G", "CTTG");
-  private static LdValue EXPECTED = new LdValue(QUERY, TARGET, 100, 75, 50, 25, 0.5, 0.4);
+  private static LdValue EXPECTED = new LdValue(QUERY, TARGET, 100, 75, 50, 25, 0.5, 1.0);
 
   @Test
   public void constructorArgOrder() {
@@ -39,14 +39,14 @@ public class LdValueTest {
     assertEquals(EXPECTED.getTargetOneAlleleCount(), 50);
     assertEquals(EXPECTED.getQueryAndTargetOneAlleleCount(), 25);
     assertEquals(EXPECTED.getR(), .5, 1e-9);
-    assertEquals(EXPECTED.getDPrime(), .4, 1e-9);
+    assertEquals(EXPECTED.getDPrime(), 1.0, 1e-9);
   }
 
   @Test
   public void toStringAndBack() {
     assertEquals(
         EXPECTED.toString(),
-        "chr2,1,2,i1,rsid,1,A,C,chr2,8,9,i2,,1,G,CTTG,100,75,50,25,0.5,0.4");
+        "chr2,1,2,i1,rsid,1,A,C,chr2,8,9,i2,,1,G,CTTG,100,75,50,25,0.500000,1.000000");
     assertEquals(EXPECTED.toString(), LdValue.fromLine(EXPECTED.toString()).toString());
   }
 
@@ -54,6 +54,6 @@ public class LdValueTest {
   public void reverseWorks() {
     assertEquals(
         EXPECTED.reverse().toString(),
-        "chr2,8,9,i2,,1,G,CTTG,chr2,1,2,i1,rsid,1,A,C,100,50,75,25,0.5,0.4");
+        "chr2,8,9,i2,,1,G,CTTG,chr2,1,2,i1,rsid,1,A,C,100,50,75,25,0.500000,1.000000");
   }
 }

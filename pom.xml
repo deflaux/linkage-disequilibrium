@@ -9,6 +9,7 @@
 
   <properties>
     <compileSource>1.8</compileSource>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <dataflow.version>1.0.0</dataflow.version>
     <genomics.dataflow.version>v1beta2-0.17</genomics.dataflow.version>
     <maven.compiler.version>3.3</maven.compiler.version>

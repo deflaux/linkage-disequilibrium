@@ -35,6 +35,12 @@ public class LdVariant implements java.io.Serializable {
 
   private final int genotypesCount;
 
+  /**
+   * Constructor for an LdVariant object.
+   *
+   * @param info the LdVariantInfo of the variant
+   * @param genotypes the array of Genotype calls for the variant
+   */
   public LdVariant(LdVariantInfo info, Genotype[] genotypes) {
     this.info = info;
 
@@ -58,6 +64,8 @@ public class LdVariant implements java.io.Serializable {
 
   /**
    * Returns true if there are at least two chromosomes with non-missing data whose alleles differ.
+   *
+   * @return true if there are at least two chromosomes with non-missing, differing alleles
    */
   public boolean hasVariation() {
     BitSet oneOrMissingGenotypes = (BitSet) oneGenotypes.clone();
@@ -68,9 +76,14 @@ public class LdVariant implements java.io.Serializable {
   }
 
   /**
-   * Computes LD between this and that variant. Return zero for both r and D' if the correlation
-   * cannot be computed (note: this can happen even if hasVariation if UNKNOWN values in one lead to
-   * insufficient variation in the other).
+   * Computes LD between this and that variant.
+   *
+   * <p>This function returns zero for both r and D' if the correlation cannot be computed.
+   * Note: this can happen even when each variant has variation, if UNKNOWN values in one variant
+   * leads to insufficient variation in the other.
+   *
+   * @param that the target variant to compute LD against
+   * @return an LdValue object representing this and that variants and the LD between them
    */
   public LdValue computeLd(LdVariant that) {
     assert this.genotypesCount == that.genotypesCount;

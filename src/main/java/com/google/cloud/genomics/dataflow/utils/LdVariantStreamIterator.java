@@ -50,9 +50,11 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   /**
    * Create new LdVariantStreamIterator.
    *
-   * @param request Stream of variants to read from.
-   * @param auth Authorization for reading variants.
-   * @param ldVariantProcessor LdVariantProcessor to run each variant through.
+   * @param request Stream of variants to read from
+   * @param auth Authorization for reading variants
+   * @param ldVariantProcessor LdVariantProcessor to run each variant through
+   * @throws java.io.IOException if an IO error occurs
+   * @throws java.security.GeneralSecurityException if an authorization error occurs
    */
   public LdVariantStreamIterator(StreamVariantsRequest request, OfflineAuth auth,
       LdVariantProcessor ldVariantProcessor)
@@ -71,7 +73,9 @@ public class LdVariantStreamIterator implements Iterator<LdVariant> {
   }
 
   /**
-   * Returns true when there are remaining varints in the stream with Variation.
+   * Returns true when there are remaining variants in the stream with Variation.
+   *
+   * @return true if and only if there are remaining variants in the stream that have variation
    */
   public boolean hasNext() {
     while (storedLdVars.isEmpty()

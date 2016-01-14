@@ -51,7 +51,7 @@ import org.apache.hadoop.hbase.util.Bytes;
  * <p>
  * Example call:
  * java -Xbootclasspath/p:lib/alpn-boot-8.1.6.v20151105.jar \
- *   -cp target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
+ *   -cp target/linkage-disequilibrium-*-runnable.jar \
  *   com.google.cloud.genomics.dataflow.pipelines.WriteLdBigtable \
  *   --runner=BlockingDataflowPipelineRunner \
  *   --project=YOUR_PROJECT_ID \
@@ -98,8 +98,92 @@ public class WriteLdBigtable {
           new Put(key)
               .addColumn(
                   LdBigtableUtils.FAMILY,
-                  LdBigtableUtils.QUALIFIER,
-                  Bytes.toBytes(c.element())));
+                  LdBigtableUtils.QCHROM,
+                  Bytes.toBytes(entry.getQuery().getReferenceName()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QSTART,
+                  Bytes.toBytes(entry.getQuery().getStart()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QEND,
+                  Bytes.toBytes(entry.getQuery().getEnd()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QID,
+                  Bytes.toBytes(entry.getQuery().getCloudId()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QRSID,
+                  Bytes.toBytes(entry.getQuery().getRsIds()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QNUMALT,
+                  Bytes.toBytes(entry.getQuery().getAlternateBasesCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QZEROALLELE,
+                  Bytes.toBytes(entry.getQuery().getZeroAlleleBases()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.QONEALLELE,
+                  Bytes.toBytes(entry.getQuery().getOneAlleleBases()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TCHROM,
+                  Bytes.toBytes(entry.getTarget().getReferenceName()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TSTART,
+                  Bytes.toBytes(entry.getTarget().getStart()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TEND,
+                  Bytes.toBytes(entry.getTarget().getEnd()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TID,
+                  Bytes.toBytes(entry.getTarget().getCloudId()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TRSID,
+                  Bytes.toBytes(entry.getTarget().getRsIds()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TNUMALT,
+                  Bytes.toBytes(entry.getTarget().getAlternateBasesCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TZEROALLELE,
+                  Bytes.toBytes(entry.getTarget().getZeroAlleleBases()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.TONEALLELE,
+                  Bytes.toBytes(entry.getTarget().getOneAlleleBases()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.NCHROM,
+                  Bytes.toBytes(entry.getCompCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.NQONES,
+                  Bytes.toBytes(entry.getQueryOneAlleleCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.NTONES,
+                  Bytes.toBytes(entry.getTargetOneAlleleCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.NBONES,
+                  Bytes.toBytes(entry.getQueryAndTargetOneAlleleCount()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.CORR,
+                  Bytes.toBytes(entry.getR()))
+              .addColumn(
+                  LdBigtableUtils.FAMILY,
+                  LdBigtableUtils.DPRIME,
+                  Bytes.toBytes(entry.getDPrime())));
     }
   };
 

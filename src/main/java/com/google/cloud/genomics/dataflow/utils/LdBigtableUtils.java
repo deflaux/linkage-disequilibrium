@@ -27,7 +27,28 @@ public class LdBigtableUtils {
   public static final byte[] FAMILY = Bytes.toBytes("ld");
 
   // All column qualifiers of the LD BigTable
-  public static final byte[] QUALIFIER = Bytes.toBytes("result");
+  public static final byte[] QCHROM = Bytes.toBytes("qChr");
+  public static final byte[] QSTART = Bytes.toBytes("qStart");
+  public static final byte[] QEND = Bytes.toBytes("qEnd");
+  public static final byte[] QID = Bytes.toBytes("qId");
+  public static final byte[] QRSID = Bytes.toBytes("qRs");
+  public static final byte[] QNUMALT = Bytes.toBytes("qNumAlt");
+  public static final byte[] QZEROALLELE = Bytes.toBytes("qZero");
+  public static final byte[] QONEALLELE = Bytes.toBytes("qOne");
+  public static final byte[] TCHROM = Bytes.toBytes("tChr");
+  public static final byte[] TSTART = Bytes.toBytes("tStart");
+  public static final byte[] TEND = Bytes.toBytes("tEnd");
+  public static final byte[] TID = Bytes.toBytes("tId");
+  public static final byte[] TRSID = Bytes.toBytes("tRs");
+  public static final byte[] TNUMALT = Bytes.toBytes("tNumAlt");
+  public static final byte[] TZEROALLELE = Bytes.toBytes("tZero");
+  public static final byte[] TONEALLELE = Bytes.toBytes("tOne");
+  public static final byte[] NCHROM = Bytes.toBytes("numChr");
+  public static final byte[] NQONES = Bytes.toBytes("numQOne");
+  public static final byte[] NTONES = Bytes.toBytes("numTOne");
+  public static final byte[] NBONES = Bytes.toBytes("numBothOne");
+  public static final byte[] CORR = Bytes.toBytes("corr");
+  public static final byte[] DPRIME = Bytes.toBytes("dprime");
 
   // The maximum human chromosome size is ~250,000,000 bp, so an int's worth of bits is plenty.
   private static final int MIN_POS = 0;

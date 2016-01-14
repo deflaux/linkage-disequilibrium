@@ -25,6 +25,7 @@ import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
+import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.utils.LdBigtableUtils;
 import com.google.common.base.Preconditions;
 
@@ -59,7 +60,7 @@ import org.apache.hadoop.hbase.util.Bytes;
  * <p>
  * Example call:
  * java -Xbootclasspath/p:lib/alpn-boot-8.1.6.v20151105.jar \
- *   -cp target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
+ *   -cp target/linkage-disequilibrium-*-runnable.jar \
  *   com.google.cloud.genomics.dataflow.pipelines.QueryLdBigtable \
  *   --runner=BlockingDataflowPipelineRunner \
  *   --project=YOUR_PROJECT_ID \
@@ -101,9 +102,35 @@ public class QueryLdBigtable {
   // Converts a BigTable Result to a String so that it can be written to a file.
   static final DoFn<Result, String> STRINGIFY = new DoFn<Result, String>() {
     @Override
-    public void processElement(DoFn<Result, String>.ProcessContext context) throws Exception {
-      context.output(Bytes.toString(context.element().getValue(
-          LdBigtableUtils.FAMILY, LdBigtableUtils.QUALIFIER)));
+    public void processElement(DoFn<Result, String>.ProcessContext ctx) throws Exception {
+      LdValue value = LdValue.fromTokens(
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QCHROM)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QSTART)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QEND)),
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QID)),
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QRSID)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QNUMALT)),
+          Bytes.toString(
+              ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QZEROALLELE)),
+          Bytes.toString(
+              ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.QONEALLELE)),
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TCHROM)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TSTART)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TEND)),
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TID)),
+          Bytes.toString(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TRSID)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TNUMALT)),
+          Bytes.toString(
+              ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TZEROALLELE)),
+          Bytes.toString(
+              ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.TONEALLELE)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.NCHROM)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.NQONES)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.NTONES)),
+          Bytes.toInt(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.NBONES)),
+          Bytes.toDouble(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.CORR)),
+          Bytes.toDouble(ctx.element().getValue(LdBigtableUtils.FAMILY, LdBigtableUtils.DPRIME)));
+      ctx.output(value.toString());
     }
   };
 
@@ -135,7 +162,7 @@ public class QueryLdBigtable {
     pipeline
        .apply(Read.from(CloudBigtableIO.read(config)))
        .apply(ParDo.of(STRINGIFY))
-       .apply(TextIO.Write.to(options.getResultLocation()));
+       .apply(TextIO.Write.withoutSharding().to(options.getResultLocation()));
 
     pipeline.run();
     // Once this is done, you can get the result file via "gsutil cp <resultLocation>* ."

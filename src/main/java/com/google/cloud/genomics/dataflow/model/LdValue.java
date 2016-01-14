@@ -55,6 +55,19 @@ public class LdValue implements Serializable {
     this.dPrime = dPrime;
   }
 
+  public static LdValue fromTokens(String qChrom, int qStart, int qEnd, String qId, String qRsids,
+      int qNumAlt, String qZeroAllele, String qOneAllele, String tChrom, int tStart, int tEnd,
+      String tId, String tRsids, int tNumAlt, String tZeroAllele, String tOneAllele, int compCount,
+      int queryOneAlleleCount, int targetOneAlleleCount, int queryAndTargetOneAlleleCount,
+      double r, double dPrime) {
+    LdVariantInfo query = new LdVariantInfo(qChrom, qStart, qEnd, qId, qRsids, qNumAlt, qZeroAllele,
+        qOneAllele);
+    LdVariantInfo target = new LdVariantInfo(tChrom, tStart, tEnd, tId, tRsids, tNumAlt,
+        tZeroAllele, tOneAllele);
+    return new LdValue(query, target, compCount, queryOneAlleleCount, targetOneAlleleCount,
+        queryAndTargetOneAlleleCount, r, dPrime);
+  }
+
   /**
    * Returns the query variant.
    *
@@ -150,7 +163,7 @@ public class LdValue implements Serializable {
         "Invalid LdValue line has %s columns (not 22): %s",
         tokens.length,
         line);
-    LdVariantInfo query = new LdVariantInfo(
+    return LdValue.fromTokens(
         tokens[0],
         Integer.parseInt(tokens[1]),
         Integer.parseInt(tokens[2]),
@@ -158,8 +171,7 @@ public class LdValue implements Serializable {
         tokens[4],
         Integer.parseInt(tokens[5]),
         tokens[6],
-        tokens[7]);
-    LdVariantInfo target = new LdVariantInfo(
+        tokens[7],
         tokens[8],
         Integer.parseInt(tokens[9]),
         Integer.parseInt(tokens[10]),
@@ -167,10 +179,7 @@ public class LdValue implements Serializable {
         tokens[12],
         Integer.parseInt(tokens[13]),
         tokens[14],
-        tokens[15]);
-    return new LdValue(
-        query,
-        target,
+        tokens[15],
         Integer.parseInt(tokens[16]),
         Integer.parseInt(tokens[17]),
         Integer.parseInt(tokens[18]),

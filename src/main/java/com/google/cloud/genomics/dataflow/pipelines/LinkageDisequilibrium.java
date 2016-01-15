@@ -55,8 +55,8 @@ import java.util.List;
  * Example call:
  *
  * java -ea -Xbootclasspath/p:lib/alpn-boot-8.1.3.v20150130.jar \
- *   -cp   target/linkage-disequilibrium-v1-0.1-SNAPSHOT-runnable.jar \
- *     com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \
+ *   -cp target/linkage-disequilibrium-*-runnable.jar \
+ *   com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \
  *   --output="gs://PATH_TO_OUTPUT_FILE" \
  *   --stagingLocation="gs://YOUR_BUCKET/staging" \
  *   --variantSetId=4252737135923902652 \

@@ -21,6 +21,7 @@ import com.google.cloud.bigtable.dataflow.CloudBigtableScanConfiguration;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
@@ -91,10 +92,12 @@ public class QueryLdBigtable {
     //   <chrom>:<start>        // Returns results for queries starting at this position
     //   <chrom>:<start>-<end>  // Returns results for all queries with start position in this range
     @Description("The query range to search, e.g. chrom:start-end")
+    @Default.String("")
     String getQueryRange();
     void setQueryRange(String queryRange);
 
     @Description("The cloud bucket file where (sharded) results are written.")
+    @Default.String("")
     String getResultLocation();
     void setResultLocation(String resultLocation);
   }
@@ -147,6 +150,12 @@ public class QueryLdBigtable {
   public static void main(String[] args) {
     QueryLdOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(QueryLdOptions.class);
+    Preconditions.checkArgument(
+        !options.getQueryRange().isEmpty(),
+        "--queryRange must be specified.");
+    Preconditions.checkArgument(
+        !options.getResultLocation().isEmpty(),
+        "--resultLocation must be specified.");
 
     // Create a scan based on the requested query range.
     Scan scan = queryScan(options.getQueryRange());

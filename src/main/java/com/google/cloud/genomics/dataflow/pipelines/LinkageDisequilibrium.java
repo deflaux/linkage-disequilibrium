@@ -90,7 +90,7 @@ public class LinkageDisequilibrium {
     void setLdCutoff(Double ldCutoff);
 
     @Description("Comma separated tuples of reference:start:end or reference for entire reference.")
-    @Default.String("20")
+    @Default.String("")
     String getReferences();
 
     void setReferences(String references);

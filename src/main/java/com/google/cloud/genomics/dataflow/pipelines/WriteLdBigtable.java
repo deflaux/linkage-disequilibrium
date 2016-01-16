@@ -20,12 +20,14 @@ import com.google.cloud.bigtable.dataflow.CloudBigtableOptions;
 import com.google.cloud.bigtable.dataflow.CloudBigtableTableConfiguration;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
+import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.genomics.dataflow.model.LdValue;
 import com.google.cloud.genomics.dataflow.utils.LdBigtableUtils;
+import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
@@ -74,6 +76,7 @@ public class WriteLdBigtable {
    */
   public static interface WriteLdOptions extends CloudBigtableOptions {
     @Description("Path to input LD file(s) to load.")
+    @Default.String("")
     String getLdInput();
     void setLdInput(String ldInput);
   }
@@ -200,6 +203,7 @@ public class WriteLdBigtable {
   public static void main(String[] args) {
     WriteLdOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(WriteLdOptions.class);
+    Preconditions.checkArgument(!options.getLdInput().isEmpty(), "--ldInput must be specified.");
 
     // CloudBigtableTableConfiguration contains the project, zone, cluster and table to connect to.
     CloudBigtableTableConfiguration config =
@@ -217,5 +221,6 @@ public class WriteLdBigtable {
        .apply(CloudBigtableIO.writeToTable(config));
 
     pipeline.run();
+
   }
 }

@@ -221,6 +221,5 @@ public class WriteLdBigtable {
        .apply(CloudBigtableIO.writeToTable(config));
 
     pipeline.run();
-
   }
 }

@@ -3,13 +3,15 @@
 
 This repository contains tools for generating and interacting with
 [linkage disequilibrium](https://en.wikipedia.org/wiki/Linkage_disequilibrium)
-(LD) data, including [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
-pipelines to calculate LD from a
-[Google Genomics](https://cloud.google.com/genomics/) variant set and write the
-results to [Google Cloud Storage](https://cloud.google.com/storage/), load a set
-of LD results from Cloud Storage into a
-[Cloud BigTable](https://cloud.google.com/bigtable/docs/), and efficiently query
-a Cloud BigTable for LD data.
+(LD) data, including 
+ * [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
+pipelines to 
+   * calculate LD from a [Google Genomics](https://cloud.google.com/genomics/) variant set and write the results to [Google Cloud Storage](https://cloud.google.com/storage/),
+   * load a set of LD results from Cloud Storage into a [Cloud BigTable](https://cloud.google.com/bigtable/docs/),
+   * and efficiently query a Cloud BigTable for LD data.
+ * The [BigQuery](https://cloud.google.com/bigquery/) schema for this data.
+
+To make use of the publicly-available LD datasets ... TODO link to googlegenomics.readthedocs.org here.
 
 ## Background
 LD is the non-random association of alleles at distinct physical loci, and can
@@ -188,15 +190,3 @@ An example command to run the pipeline is given within the
 [QueryLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/QueryLdBigtable.java)
 source code itself.
 
-## Publicly-available LD datasets
-Coming soon...
-
-## Troubleshooting
-
-1. If the
-   [Application Default Credentials](https://developers.google.com/identity/protocols/application-default-credentials)
-   are not sufficient to run the `LinkageDisequilibrium.java` pipeline, add the
-   `--client-secrets PATH/TO/YOUR/client_secrets.json` flag to the command. If
-   you do not already have this file, see the
-   [authentication instructions](https://cloud.google.com/genomics/install-genomics-tools#authenticate)
-   to obtain it.

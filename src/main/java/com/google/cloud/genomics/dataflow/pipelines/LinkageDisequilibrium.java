@@ -20,6 +20,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Default;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.Create;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
@@ -89,8 +90,8 @@ public class LinkageDisequilibrium {
 
     void setLdCutoff(Double ldCutoff);
 
+    @Required
     @Description("Comma separated tuples of reference:start:end or reference for entire reference.")
-    @Default.String("20")
     String getReferences();
 
     void setReferences(String references);

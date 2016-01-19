@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.genomics.dataflow.model.LdValue;
@@ -90,10 +91,12 @@ public class QueryLdBigtable {
     //   <chrom>                // Returns results for the entire chromosome
     //   <chrom>:<start>        // Returns results for queries starting at this position
     //   <chrom>:<start>-<end>  // Returns results for all queries with start position in this range
+    @Required
     @Description("The query range to search, e.g. chrom:start-end")
     String getQueryRange();
     void setQueryRange(String queryRange);
 
+    @Required
     @Description("The cloud bucket file where (sharded) results are written.")
     String getResultLocation();
     void setResultLocation(String resultLocation);

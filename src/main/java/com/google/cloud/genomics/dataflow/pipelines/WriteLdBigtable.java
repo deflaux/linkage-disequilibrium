@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.Description;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.options.Validation.Required;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.genomics.dataflow.model.LdValue;
@@ -73,6 +74,7 @@ public class WriteLdBigtable {
    * to read the input linkage disequilibrium data from.
    */
   public static interface WriteLdOptions extends CloudBigtableOptions {
+    @Required
     @Description("Path to input LD file(s) to load.")
     String getLdInput();
     void setLdInput(String ldInput);

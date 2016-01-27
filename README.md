@@ -3,15 +3,19 @@
 
 This repository contains tools for generating and interacting with
 [linkage disequilibrium](https://en.wikipedia.org/wiki/Linkage_disequilibrium)
-(LD) data, including 
+(LD) data, including
  * [Google Cloud Dataflow](https://cloud.google.com/dataflow/)
-pipelines to 
+pipelines to
    * calculate LD from a [Google Genomics](https://cloud.google.com/genomics/) variant set and write the results to [Google Cloud Storage](https://cloud.google.com/storage/),
    * load a set of LD results from Cloud Storage into a [Cloud BigTable](https://cloud.google.com/bigtable/docs/),
    * and efficiently query a Cloud BigTable for LD data.
  * The [BigQuery](https://cloud.google.com/bigquery/) schema for this data.
 
-To make use of the publicly-available LD datasets ... TODO link to googlegenomics.readthedocs.org here.
+In addition, the tools have been used to create a publicly-available repository
+of LD on the [1000 Genomes](http://www.1000genomes.org/) Phase 3 data. See the
+[example Datalab](datalab/Exploring_Linkage_Disequilibrium_Data.ipynb) or the
+[Google Genomics Cookbook](http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/index.html)
+data description for more details.
 
 ## Background
 LD is the non-random association of alleles at distinct physical loci, and can

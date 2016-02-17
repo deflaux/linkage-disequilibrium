@@ -44,35 +44,8 @@ import org.apache.hadoop.hbase.util.Bytes;
  * The Cloud BigTable from which LD results are read must have been populated by the
  * WriteLdBigtable pipeline.
  *
- * <p>
- * This pipeline needs to be configured with four command line options for bigtable:
- * <ul>
- *  <li> --bigtableProjectId=[bigtable project]
- *  <li> --bigtableClusterId=[bigtable cluster id]
- *  <li> --bigtableZoneId=[bigtable zone]
- *  <li> --bigtableTableId=[bigtable tableName]
- * </ul>
- *
- * It also requires two additional flags:
- * <ul>
- *   <li> --queryRange=[chrom:start-end]
- *   <li> --resultLocation=[path to output storage location]
- * </ul>
- * <p>
- * Example call:
- * java -Xbootclasspath/p:lib/alpn-boot-8.1.6.v20151105.jar \
- *   -cp target/linkage-disequilibrium-*-runnable.jar \
- *   com.google.cloud.genomics.dataflow.pipelines.QueryLdBigtable \
- *   --runner=BlockingDataflowPipelineRunner \
- *   --project=YOUR_PROJECT_ID \
- *   --stagingLocation="gs://YOUR_BUCKET/staging" \
- *   --numWorkers=10 \
- *   --bigtableProjectId=YOUR_BIGTABLE_PROJECT_ID \
- *   --bigtableClusterId=YOUR_BIGTABLE_CLUSTER_ID \
- *   --bigtableZoneId=YOUR_BIGTABLE_ZONE \
- *   --bigtableTableId=YOUR_BIGTABLE_TABLE_ID \
- *   --queryRange="22:10-50000000" \
- *   --resultLocation="gs://PATH_TO_OUTPUT_FILE"
+ * See http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/transform_ld_results.html
+ * for running instructions.
  */
 public class QueryLdBigtable {
 

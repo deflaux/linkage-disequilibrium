@@ -39,30 +39,8 @@ import org.apache.hadoop.hbase.util.Bytes;
  * The Cloud BigTable must already be created and have a column family named "ld" to which all
  * results will be written. The key for the table enables fast searches by genomic region.
  *
- * <p>
- * This pipeline needs to be configured with four command line options for bigtable:
- * <ul>
- *   <li>--bigtableProjectId=[bigtable project]
- *   <li>--bigtableClusterId=[bigtable cluster id]
- *   <li>--bigtableZoneId=[bigtable zone]
- *   <li>--bigtableTableId=[bigtable tableName]
- * </ul>
- *
- * It also requires a glob path to Cloud Storage that identifies all input data to read.
- * <p>
- * Example call:
- * java -Xbootclasspath/p:lib/alpn-boot-8.1.6.v20151105.jar \
- *   -cp target/linkage-disequilibrium-*-runnable.jar \
- *   com.google.cloud.genomics.dataflow.pipelines.WriteLdBigtable \
- *   --runner=BlockingDataflowPipelineRunner \
- *   --project=YOUR_PROJECT_ID \
- *   --stagingLocation="gs://YOUR_BUCKET/staging" \
- *   --numWorkers=10 \
- *   --bigtableProjectId=YOUR_BIGTABLE_PROJECT_ID \
- *   --bigtableClusterId=YOUR_BIGTABLE_CLUSTER_ID \
- *   --bigtableZoneId=YOUR_BIGTABLE_ZONE \
- *   --bigtableTableId=YOUR_BIGTABLE_TABLE_ID \
- *   --ldInput="gs://PATH_TO_DIR_WITH_LD_DATA/*"
+ * See http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/transform_ld_results.html
+ * for running instructions.
  */
 public class WriteLdBigtable {
 

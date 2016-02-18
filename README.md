@@ -24,7 +24,7 @@ arise due to many different factors in population genetics.
 Knowing the extent of LD between variants is essential for filtering when using
 various population genetics algorithms, such as using principal component
 analysis to identify genome-wide population structure. Furthermore, LD between
-variants can be exploited when one is interested in an individual’s genotype at
+variants can be exploited when one is interested in an individual's genotype at
 a particular variant of interest, but that variant is not directly assayed in
 the experiment used (i.e. as a quick proxy for genotype imputation).
 
@@ -176,9 +176,7 @@ sorted by the location of the target variants, and results for query variants
 are sorted by the location of query variants. This key design allows efficient
 access to all LD results for a single variant or a single region of the genome.
 
-An example command to run the pipeline is given within the
-[WriteLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/WriteLdBigtable.java)
-source code itself.
+See the [Google Genomics Cookbook](http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/transform_ld_results.html) for an example command line for this pipeline.
 
 ## Querying LD calculations stored in BigTable
 Once a BigTable storing LD data has been created, a mechanism for accessing the
@@ -190,7 +188,5 @@ originally written by the
 [LinkageDisequilibrium.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/LinkageDisequilibrium.java)
 pipeline.
 
-An example command to run the pipeline is given within the
-[QueryLdBigtable.java](src/main/java/com/google/cloud/genomics/dataflow/pipelines/QueryLdBigtable.java)
-source code itself.
+See the [Google Genomics Cookbook](http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/transform_ld_results.html) for an example command line for this pipeline.
 

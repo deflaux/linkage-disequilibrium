@@ -53,23 +53,8 @@ import java.util.List;
  * Computes linkage disequilibrium r and D' between all variants that start inside the references
  * list if they are within window of each other.
  *
- * Example call:
- *
- * java -ea -Xbootclasspath/p:lib/alpn-boot-8.1.3.v20150130.jar \
- *   -cp target/linkage-disequilibrium-*-runnable.jar \
- *   com.google.cloud.genomics.dataflow.pipelines.LinkageDisequilibrium \
- *   --output="gs://PATH_TO_OUTPUT_FILE" \
- *   --stagingLocation="gs://YOUR_BUCKET/staging" \
- *   --variantSetId=4252737135923902652 \
- *   --ldCutoff=0.4 \
- *   --references=20:10000000:30000000 \
- *   --window=1000000 \
- *   --basesPerShard=100000 \
- *   --callSetsToUse=HG00096,HG00097,HG00099,HG00100,HG00101,HG00102,HG00103,HG00105,HG00106,HG00107 \
- *   --project="YOUR_PROJECT_ID" \
- *   --runner=DataflowPipelineRunner \
- *   --zone=us-east1-c \
- *   --numWorkers=10
+ * See http://googlegenomics.readthedocs.org/en/latest/use_cases/linkage_disequilibrium/compute_linkage_disequilibrium.html
+ * for running instructions.
  *
  * For output format, see LdValue.toString().
  */

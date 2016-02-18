@@ -13,8 +13,7 @@
     <dataflow.version>1.0.0</dataflow.version>
     <genomics.dataflow.version>v1beta2-0.18</genomics.dataflow.version>
     <maven.compiler.version>3.3</maven.compiler.version>
-    <!-- See bug referenced in "repositories" section below -->
-    <bigtable.version>0.2.3-SNAPSHOT</bigtable.version>
+    <bigtable.version>0.2.3</bigtable.version>
   </properties>
 
   <dependencies>
@@ -107,14 +106,4 @@
       </plugin>
     </plugins>
   </build>
-
-  <!-- See https://github.com/GoogleCloudPlatform/cloud-bigtable-client/issues/613 -->
-  <repositories>
-    <repository>
-      <id>snapshots-repo</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-      <releases><enabled>false</enabled></releases>
-      <snapshots><enabled>true</enabled></snapshots>
-    </repository>
-  </repositories>
 </project>

@@ -10,8 +10,7 @@
   <properties>
     <compileSource>1.8</compileSource>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <dataflow.version>1.0.0</dataflow.version>
-    <genomics.dataflow.version>v1beta2-0.18</genomics.dataflow.version>
+    <genomics.dataflow.version>v1-0.1</genomics.dataflow.version>
     <maven.compiler.version>3.3</maven.compiler.version>
     <bigtable.version>0.2.3</bigtable.version>
   </properties>
@@ -22,11 +21,6 @@
       <artifactId>auto-value</artifactId>
       <version>1.1</version>
       <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.cloud.dataflow</groupId>
-      <artifactId>google-cloud-dataflow-java-sdk-all</artifactId>
-      <version>${dataflow.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.genomics</groupId>

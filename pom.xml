@@ -12,7 +12,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <genomics.dataflow.version>v1-0.1</genomics.dataflow.version>
     <maven.compiler.version>3.3</maven.compiler.version>
-    <bigtable.version>0.2.3</bigtable.version>
+    <bigtable.version>0.3.0</bigtable.version>
   </properties>
 
   <dependencies>
